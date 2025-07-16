@@ -74,6 +74,7 @@ def expose_access_token(request) -> Optional[Dict[str, Any]]:
     """
     Determines if a new access token needs to be exposed.
     """
+    return None
     if request.allauth.headless.client != Client.APP:
         return None
     if not request.user.is_authenticated:

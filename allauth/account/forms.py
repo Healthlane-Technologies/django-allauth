@@ -631,17 +631,17 @@ class ResetPasswordForm(forms.Form):
 
     def save(self, request, **kwargs) -> str:
         email = self.cleaned_data["email"]
-        if app_settings.PASSWORD_RESET_BY_CODE_ENABLED:
-            flows.password_reset_by_code.PasswordResetVerificationProcess.initiate(
-                request=request,
-                user=(self.users[0] if self.users else None),
-                email=email,
-            )
-        else:
-            token_generator = kwargs.get("token_generator", default_token_generator)
-            flows.password_reset.request_password_reset(
-                request, email, self.users, token_generator
-            )
+        # if app_settings.PASSWORD_RESET_BY_CODE_ENABLED:
+        #     flows.password_reset_by_code.PasswordResetVerificationProcess.initiate(
+        #         request=request,
+        #         user=(self.users[0] if self.users else None),
+        #         email=email,
+        #     )
+        # else:
+        token_generator = kwargs.get("token_generator", default_token_generator)
+        flows.password_reset.request_password_reset(
+            request, email, self.users, token_generator
+        )
         return email
 
 

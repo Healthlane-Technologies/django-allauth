@@ -76,7 +76,7 @@ def perform_password_login(
 ) -> HttpResponse:
     extra_data = {
         field: credentials.get(field)
-        for field in ["email", "username"]
+        for field in ["email", "username", "phone"]
         if credentials.get(field)
     }
     record_authentication(request, login.user, method="password", **extra_data)

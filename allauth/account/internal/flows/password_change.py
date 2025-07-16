@@ -47,7 +47,9 @@ def logout_on_password_change(request: HttpRequest, user: AbstractBaseUser) -> b
     # password change, this function actually has to preserve the session when
     # logout isn't desired.
     logged_out = True
-    if not app_settings.LOGOUT_ON_PASSWORD_CHANGE:
+    if not request.tenant.auth_config.get("session_policy", {}).get(
+        "force_logout_on_password_change", False
+    ):
         update_session_auth_hash(request, user)  # type: ignore[arg-type]
         logged_out = False
     else:

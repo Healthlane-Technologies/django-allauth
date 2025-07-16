@@ -1,5 +1,5 @@
 from io import BytesIO
-from typing import Dict
+from typing import Dict, Tuple, List
 from urllib.parse import quote
 
 from django.utils.http import urlencode
@@ -120,16 +120,10 @@ class DefaultMFAAdapter(BaseAdapter):
     def send_notification_mail(self, *args, **kwargs):
         return get_account_adapter().send_notification_mail(*args, **kwargs)
 
-    def is_mfa_enabled(self, user, types=None) -> bool:
-        """
-        Returns ``True`` if (and only if) the user has 2FA enabled.
-        """
-        if user.is_anonymous:
-            return False
-        qs = Authenticator.objects.filter(user=user)
-        if types is not None:
-            qs = qs.filter(type__in=types)
-        return qs.exists()
+    def is_mfa_enabled(self, user=None, request=None) -> Tuple[bool, List[str]]:
+        from zango.core.utils import get_auth_priority
+        policy = get_auth_priority(policy="two_factor_auth", request=request, user=user)
+        return policy.get("required"), policy.get("allowed_methods")
 
     def generate_authenticator_name(self, user, type: Authenticator.Type) -> str:
         """

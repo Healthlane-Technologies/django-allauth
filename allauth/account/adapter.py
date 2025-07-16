@@ -526,23 +526,7 @@ class DefaultAccountAdapter(BaseAdapter):
         return response
 
     def login(self, request, user):
-        # HACK: This is not nice. The proper Django way is to use an
-        # authentication backend
-        if not hasattr(user, "backend"):
-            from .auth_backends import AuthenticationBackend
-
-            backends = get_backends()
-            backend = None
-            for b in backends:
-                if isinstance(b, AuthenticationBackend):
-                    # prefer our own backend
-                    backend = b
-                    break
-                elif not backend and hasattr(b, "get_user"):
-                    # Pick the first valid one
-                    backend = b
-            backend_path = ".".join([backend.__module__, backend.__class__.__name__])
-            user.backend = backend_path
+        user.backend = 'zango.apps.appauth.auth_backend.AppUserModelBackend'
         django_login(request, user)
 
     def logout(self, request):
@@ -773,12 +757,17 @@ class DefaultAccountAdapter(BaseAdapter):
         key = get_random_string(64).lower()
         return key
 
-    def get_login_stages(self):
+    def get_login_stages(self, request, user=None):
+        from allauth.mfa.utils import is_mfa_enabled
+
         ret = []
         ret.append("allauth.account.stages.LoginByCodeStage")
         ret.append("allauth.account.stages.PhoneVerificationStage")
         ret.append("allauth.account.stages.EmailVerificationStage")
-        if allauth_app_settings.MFA_ENABLED:
+        ret.append("allauth.account.stages.RoleSelectionStage")
+        ret.append("allauth.account.stages.SetPasswordStage")
+        enabled, _ = is_mfa_enabled(user, request)
+        if enabled:
             from allauth.mfa import app_settings as mfa_settings
 
             ret.append("allauth.mfa.stages.AuthenticateStage")
