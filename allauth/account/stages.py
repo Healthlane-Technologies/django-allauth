@@ -237,7 +237,8 @@ class RoleSelectionStage(LoginStage):
         if self.user_has_multiple_roles() and not self.request.session.get("role_id"):
             response = headed_redirect_response("account_role_selection")
             return response, True
-        self.request.session["role_id"] = self.login.user.roles.all()[0].id
+        if not self.request.session.get("role_id"):
+            self.request.session["role_id"] = self.login.user.roles.all()[0].id
         return None, True
 
 class SetPasswordStage(LoginStage):
@@ -245,6 +246,12 @@ class SetPasswordStage(LoginStage):
     urlname = "account_set_password"
 
     def handle(self):
+        print("Request session is ", self.request.session.items())
+        auth_methods = self.request.session.get("account_authentication_methods", [])
+        if len(auth_methods) > 0:
+            for method in auth_methods:
+                if method.get("method") == "code":
+                    return None, True
         reset_days = self.request.tenant.auth_config.get("password_policy", {}).get("password_expiry_days", 90)
         if self.login.user.has_password_reset_step(self.request, reset_days):
             response = headed_redirect_response("account_set_password")

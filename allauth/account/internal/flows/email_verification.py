@@ -24,14 +24,15 @@ from allauth.utils import build_absolute_uri
 def verify_email_indirectly(
     request: HttpRequest, user: AbstractBaseUser, email: str
 ) -> bool:
-    try:
-        email_address = EmailAddress.objects.get_for_user(user, email)
-    except EmailAddress.DoesNotExist:
-        return False
-    else:
-        if not email_address.verified:
-            return verify_email(request, email_address)
-        return True
+    # try:
+    #     email_address = EmailAddress.objects.get_for_user(user, email)
+    # except EmailAddress.DoesNotExist:
+    #     return False
+    # else:
+    #     if not email_address.verified:
+    #         return verify_email(request, email_address)
+    #     return True
+    return True
 
 
 def verify_email_and_resume(

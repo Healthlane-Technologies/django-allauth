@@ -73,8 +73,8 @@ class LoginCodeVerificationProcess(AbstractCodeVerificationProcess):
     def send_by_phone(self, phone):
         adapter = get_adapter()
         if self.user:
-            code = adapter.generate_phone_verification_code()
-            adapter.send_verification_code_sms(user=self.user, phone=phone, code=code)
+            code = adapter.generate_login_code(phone=phone)
+            adapter.send_verification_code_sms(user=self.user, phone=phone, request=self.request, code=code)
             self.state["code"] = code
         else:
             adapter.send_unknown_account_sms(phone)
@@ -85,12 +85,8 @@ class LoginCodeVerificationProcess(AbstractCodeVerificationProcess):
         if not self.user:
             send_unknown_account_mail(self.request, email)
         else:
-            code = adapter.generate_login_code()
-            context = {
-                "request": self.request,
-                "code": code,
-            }
-            adapter.send_mail("account/email/login_code", email, context)
+            code = adapter.generate_login_code(email=email)
+            adapter.send_mail(email, code=code)
             self.state["code"] = code
         self.add_sent_message({"email": email, "recipient": email})
 

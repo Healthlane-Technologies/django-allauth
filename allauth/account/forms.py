@@ -711,8 +711,12 @@ class RequestLoginCodeForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._has_email = LoginMethod.EMAIL in app_settings.LOGIN_METHODS
-        self._has_phone = LoginMethod.PHONE in app_settings.LOGIN_METHODS
+        from zango.core.utils import get_auth_priority
+
+        policy = get_auth_priority(policy="login_methods")
+        otp_methods = policy.get("otp",{}).get("allowed_methods")
+        self._has_email = "email" in otp_methods
+        self._has_phone = "sms" in otp_methods
         if self._has_phone:
             adapter = get_adapter()
             self.fields["phone"] = adapter.phone_form_field(

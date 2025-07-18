@@ -63,7 +63,6 @@ class LoginInput(inputs.Input):
         credentials = {}
         for login_method in get_auth_priority(policy="login_methods").get("allowed_usernames"):
             value = cleaned_data.get(login_method)
-            print("login_method, cleaned_data", login_method, cleaned_data)
             if value is not None and login_method in self.data.keys():
                 credentials[login_method] = value
         if len(credentials) != 1:

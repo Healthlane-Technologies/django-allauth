@@ -21,7 +21,8 @@ PHONE_VERIFICATION_SESSION_KEY = "account_phone_verification"
 
 
 def verify_phone_indirectly(request: HttpRequest, user, phone: str) -> None:
-    get_adapter().set_phone_verified(user, phone)
+    pass
+    # get_adapter().set_phone_verified(user, phone)
 
 
 class PhoneVerificationProcess(AbstractCodeVerificationProcess):

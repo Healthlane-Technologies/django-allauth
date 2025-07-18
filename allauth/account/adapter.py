@@ -1,5 +1,6 @@
 import html
 import json
+import requests
 import typing
 import warnings
 from urllib.parse import urlparse
@@ -39,6 +40,9 @@ from allauth.core.internal.adapter import BaseAdapter
 from allauth.core.internal.cryptokit import generate_user_code
 from allauth.core.internal.httpkit import headed_redirect_response, is_headless_request
 from allauth.utils import generate_unique_username, import_attribute
+
+from zango.core.utils import get_auth_priority, get_package_url
+from zango.apps.appauth.tasks import send_otp
 
 
 class DefaultAccountAdapter(BaseAdapter):
@@ -199,16 +203,24 @@ class DefaultAccountAdapter(BaseAdapter):
             msg.content_subtype = "html"  # Main content is now text/html
         return msg
 
-    def send_mail(self, template_prefix: str, email: str, context: dict) -> None:
+    def send_mail(self, email: str, code: str) -> None:
+
         request = globals()["context"].request
-        ctx = {
-            "request": request,
-            "email": email,
-            "current_site": get_current_site(request),
-        }
-        ctx.update(context)
-        msg = self.render_mail(template_prefix, email, ctx)
-        msg.send()
+
+        policy = get_auth_priority(policy="login_methods")
+        otp_methods = policy.get("otp",{}).get("allowed_methods")
+        if "email" in otp_methods:
+            send_otp.delay(
+                method="email",
+                otp_type="login_code",
+                tenant_id=request.tenant.id,
+                message="Your login code is",
+                subject="Login Code",
+                email=email,
+                code=code,
+            )
+        else:
+            raise ValueError("Email OTP is not enabled")
 
     def get_signup_redirect_url(self, request):
         """
@@ -831,11 +843,15 @@ class DefaultAccountAdapter(BaseAdapter):
             ctx.update(context)
         self.send_mail(template_prefix, email, ctx)
 
-    def generate_login_code(self) -> str:
+    def generate_login_code(self, email=None, phone=None) -> str:
         """
         Generates a new login code.
         """
-        return generate_user_code()
+        from zango.apps.appauth.models import generate_otp
+        if email:
+            return generate_otp(otp_type="login_code", email=email)
+        if phone:
+            return generate_otp(otp_type="login_code", phone=phone)
 
     def generate_password_reset_code(self) -> str:
         """
@@ -894,11 +910,19 @@ class DefaultAccountAdapter(BaseAdapter):
     def send_account_already_exists_sms(self, phone: str) -> None:
         pass
 
-    def send_verification_code_sms(self, user, phone: str, code: str, **kwargs):
+    def send_verification_code_sms(self, user, phone: str, request, code: str, **kwargs):
         """
         Sends a verification code.
         """
-        raise NotImplementedError
+        send_otp.delay(
+            method="sms",
+            otp_type="login_code",
+            message="Your login code is",
+            subject="Login Code",
+            phone=phone,
+            tenant_id=request.tenant.id,
+            code=code,
+        )
 
     @property
     def _has_phone_impl(self) -> bool:
@@ -944,7 +968,12 @@ class DefaultAccountAdapter(BaseAdapter):
         Looks up a user given the specified phone number. Returns ``None`` if no user
         was found.
         """
-        raise NotImplementedError
+        from zango.apps.appauth.models import AppUserModel
+
+        try:
+            return AppUserModel.objects.get(mobile=phone)
+        except AppUserModel.DoesNotExist:
+            return None
 
 
 def get_adapter(request=None) -> DefaultAccountAdapter:
