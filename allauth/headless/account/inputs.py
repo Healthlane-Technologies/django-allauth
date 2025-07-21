@@ -50,18 +50,19 @@ class LoginInput(inputs.Input):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         policy = get_auth_priority(policy="login_methods")
+        password_policy = policy.get("password", {})
         for field in ["email", "phone"]:
-            if field not in policy.get("allowed_usernames"):
+            if field not in password_policy.get("allowed_usernames"):
                 del self.fields[field]
-        if len(policy.get("allowed_usernames")) == 1:
-            self.fields[next(iter(policy.get("allowed_usernames")))].required = True
+        if len(password_policy.get("allowed_usernames")) == 1:
+            self.fields[next(iter(password_policy.get("allowed_usernames")))].required = True
 
     def clean(self):
         cleaned_data = super().clean()
         if self.errors:
             return cleaned_data
         credentials = {}
-        for login_method in get_auth_priority(policy="login_methods").get("allowed_usernames"):
+        for login_method in get_auth_priority(policy="login_methods").get("password", {}).get("allowed_usernames"):
             value = cleaned_data.get(login_method)
             if value is not None and login_method in self.data.keys():
                 credentials[login_method] = value
