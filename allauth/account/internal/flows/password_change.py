@@ -7,6 +7,8 @@ from allauth.account import app_settings, signals
 from allauth.account.adapter import get_adapter
 from allauth.account.internal.flows.logout import logout
 
+from zango.core.utils import get_auth_priority
+
 
 def change_password(user: AbstractBaseUser, password: str) -> None:
     get_adapter().set_password(user, password)
@@ -47,9 +49,9 @@ def logout_on_password_change(request: HttpRequest, user: AbstractBaseUser) -> b
     # password change, this function actually has to preserve the session when
     # logout isn't desired.
     logged_out = True
-    if not request.tenant.auth_config.get("session_policy", {}).get(
-        "force_logout_on_password_change", False
-    ):
+    password_policy = get_auth_priority("password_policy", request=request, user=user)
+    reset_password_policy = password_policy.get("reset", {})
+    if reset_password_policy.get("login_after_reset", False):
         update_session_auth_hash(request, user)  # type: ignore[arg-type]
         logged_out = False
     else:

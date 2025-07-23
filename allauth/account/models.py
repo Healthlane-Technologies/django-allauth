@@ -294,7 +294,7 @@ class Login:
         user_pk = data["user_pk"]
         if user_pk is not None:
             user = (
-                get_user_model().objects.filter(pk=url_str_to_user_pk(user_pk)).first()
+                get_user_model().objects.get(id=url_str_to_user_pk(user_pk))
             )
         try:
             # :-( Knowledge of the `socialaccount` is entering the `account` app.
