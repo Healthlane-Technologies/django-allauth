@@ -631,17 +631,17 @@ class ResetPasswordForm(forms.Form):
 
     def save(self, request, **kwargs) -> str:
         email = self.cleaned_data["email"]
-        if app_settings.PASSWORD_RESET_BY_CODE_ENABLED:
-            flows.password_reset_by_code.PasswordResetVerificationProcess.initiate(
-                request=request,
-                user=(self.users[0] if self.users else None),
-                email=email,
-            )
-        else:
-            token_generator = kwargs.get("token_generator", default_token_generator)
-            flows.password_reset.request_password_reset(
-                request, email, self.users, token_generator
-            )
+        # if app_settings.PASSWORD_RESET_BY_CODE_ENABLED:
+        #     flows.password_reset_by_code.PasswordResetVerificationProcess.initiate(
+        #         request=request,
+        #         user=(self.users[0] if self.users else None),
+        #         email=email,
+        #     )
+        # else:
+        token_generator = kwargs.get("token_generator", default_token_generator)
+        flows.password_reset.request_password_reset(
+            request, email, self.users, token_generator
+        )
         return email
 
 
@@ -711,8 +711,12 @@ class RequestLoginCodeForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._has_email = LoginMethod.EMAIL in app_settings.LOGIN_METHODS
-        self._has_phone = LoginMethod.PHONE in app_settings.LOGIN_METHODS
+        from zango.core.utils import get_auth_priority
+
+        policy = get_auth_priority(policy="login_methods")
+        otp_methods = policy.get("otp",{}).get("allowed_methods")
+        self._has_email = "email" in otp_methods
+        self._has_phone = "sms" in otp_methods
         if self._has_phone:
             adapter = get_adapter()
             self.fields["phone"] = adapter.phone_form_field(

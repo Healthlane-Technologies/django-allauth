@@ -4,7 +4,6 @@ from django.utils.translation import gettext_lazy as _
 from allauth.core import context
 from allauth.mfa.adapter import get_adapter
 from allauth.mfa.base.internal.flows import check_rate_limit, post_authentication
-from allauth.mfa.models import Authenticator
 
 
 class BaseAuthenticateForm(forms.Form):
@@ -19,26 +18,26 @@ class BaseAuthenticateForm(forms.Form):
         self.user = kwargs.pop("user")
         super().__init__(*args, **kwargs)
 
-    def clean_code(self):
+    def clean(self):
         clear_rl = check_rate_limit(self.user)
         code = self.cleaned_data["code"]
-        for auth in Authenticator.objects.filter(user=self.user).exclude(
-            # WebAuthn cannot validate manual codes.
-            type=Authenticator.Type.WEBAUTHN
-        ):
-            if auth.wrap().validate_code(code):
-                self.authenticator = auth
+
+        from zango.apps.appauth.models import OTPCode
+
+        otp_codes = OTPCode.objects.filter(user=self.user, otp_type="two_factor_auth")
+        for otp_code in otp_codes:
+            if otp_code.is_valid() and otp_code.code == code:
+                otp_code.mark_as_used()
                 clear_rl()
                 return code
-
         raise get_adapter().validation_error("incorrect_code")
 
 
 class AuthenticateForm(BaseAuthenticateForm):
     def save(self):
-        post_authentication(context.request, self.authenticator)
+        post_authentication(context.request, user = self.user)
 
 
 class ReauthenticateForm(BaseAuthenticateForm):
     def save(self):
-        post_authentication(context.request, self.authenticator, reauthenticated=True)
+        post_authentication(context.request, user=self.user)

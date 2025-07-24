@@ -23,6 +23,7 @@ from allauth.core.internal.cryptokit import compare_user_code
 from allauth.headless.adapter import get_adapter
 from allauth.headless.internal.restkit import inputs
 
+from zango.core.utils import get_auth_priority
 
 class SignupInput(BaseSignupForm, inputs.Input):
     password = inputs.CharField()
@@ -41,7 +42,6 @@ class SignupInput(BaseSignupForm, inputs.Input):
 
 
 class LoginInput(inputs.Input):
-    username = inputs.CharField(required=False)
     email = inputs.EmailField(required=False)
     # NOTE: Always require E164, no need to use adapter.phone_form_field
     phone = PhoneField(required=False)
@@ -49,18 +49,20 @@ class LoginInput(inputs.Input):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in ["username", "email", "phone"]:
-            if field not in account_settings.LOGIN_METHODS:
+        policy = get_auth_priority(policy="login_methods")
+        password_policy = policy.get("password", {})
+        for field in ["email", "phone"]:
+            if field not in password_policy.get("allowed_usernames"):
                 del self.fields[field]
-        if len(account_settings.LOGIN_METHODS) == 1:
-            self.fields[next(iter(account_settings.LOGIN_METHODS))].required = True
+        if len(password_policy.get("allowed_usernames")) == 1:
+            self.fields[next(iter(password_policy.get("allowed_usernames")))].required = True
 
     def clean(self):
         cleaned_data = super().clean()
         if self.errors:
             return cleaned_data
         credentials = {}
-        for login_method in account_settings.LOGIN_METHODS:
+        for login_method in get_auth_priority(policy="login_methods").get("password", {}).get("allowed_usernames"):
             value = cleaned_data.get(login_method)
             if value is not None and login_method in self.data.keys():
                 credentials[login_method] = value
@@ -78,7 +80,7 @@ class LoginInput(inputs.Input):
                         "too_many_login_attempts"
                     )
             else:
-                error_code = "%s_password_mismatch" % auth_method.value
+                error_code = "%s_password_mismatch" % auth_method
                 self.add_error(
                     "password", get_account_adapter().validation_error(error_code)
                 )

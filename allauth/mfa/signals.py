@@ -24,6 +24,7 @@ def on_add_email(sender, email, user, **kwargs):
         return
     if account_settings.EMAIL_VERIFICATION_BY_CODE_ENABLED:
         return
-    if is_mfa_enabled(user):
+    enabled, _ = is_mfa_enabled(user)
+    if enabled:
         adapter = get_adapter()
         raise adapter.validation_error("add_email_blocked")

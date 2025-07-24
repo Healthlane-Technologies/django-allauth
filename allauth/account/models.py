@@ -17,9 +17,11 @@ from allauth.account.adapter import get_adapter
 from allauth.account.managers import EmailAddressManager, EmailConfirmationManager
 
 
+from zango.apps.appauth.models import AppUserModel
+
 class EmailAddress(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        AppUserModel,
         verbose_name=_("user"),
         on_delete=models.CASCADE,
     )
@@ -251,7 +253,7 @@ class Login:
         self.user = user
         if not email_verification:
             email_verification = app_settings.EMAIL_VERIFICATION
-        self.email_verification = email_verification
+        self.email_verification = email_verification # read this from tenant auth config
         self.redirect_url = redirect_url
         self.signal_kwargs = signal_kwargs
         self.signup = signup

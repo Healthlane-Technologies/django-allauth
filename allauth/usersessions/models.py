@@ -13,6 +13,8 @@ from allauth import app_settings as allauth_settings
 from allauth.account.adapter import get_adapter
 from allauth.core import context
 
+from zango.apps.appauth.models import AppUserModel
+
 
 if not allauth_settings.USERSESSIONS_ENABLED:
     raise ImproperlyConfigured(
@@ -85,7 +87,7 @@ class UserSessionManager(models.Manager):
 class UserSession(models.Model):
     objects = UserSessionManager()
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(AppUserModel, on_delete=models.CASCADE)
     created_at = models.DateTimeField(default=timezone.now)
     ip = models.GenericIPAddressField()
     last_seen_at = models.DateTimeField(default=timezone.now)

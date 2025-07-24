@@ -95,14 +95,9 @@ def get_reauthentication_flows(user) -> List[Dict]:
             "id": "reauthenticate",
         }
         ret.append(entry)
-    if allauth_settings.MFA_ENABLED:
-        from allauth.mfa.models import Authenticator
-        from allauth.mfa.utils import is_mfa_enabled
+    from allauth.mfa.utils import is_mfa_enabled
 
-        types = []
-        for typ in Authenticator.Type:
-            if is_mfa_enabled(user, types=[typ]):
-                types.append(typ)
-        if types:
-            ret.append({"id": "mfa_reauthenticate", "types": types})
+    enabled, types = is_mfa_enabled(user)
+    if enabled:
+        ret.append({"id": "mfa_reauthenticate", "types": types})
     return ret

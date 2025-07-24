@@ -38,11 +38,11 @@ class LoginStage:
         from allauth.account.internal.flows.login import resume_login
 
         self.controller.set_handled(self.key)
-        return resume_login(self.request, self.login)
+        resp = resume_login(self.request, self.login)
+        return resp
 
     def abort(self):
         from allauth.account.internal.stagekit import clear_login
-
         clear_login(self.request)
         return headed_redirect_response("account_login")
 
@@ -66,7 +66,7 @@ class LoginStageController:
         ctrl = LoginStageController(request, login)
         if ctrl.state.get("current") != stage_key:
             return None
-        stages = ctrl.get_stages()
+        stages = ctrl.get_stages(request)
         for stage in stages:
             if stage.key == stage_key:
                 return stage
@@ -98,10 +98,10 @@ class LoginStageController:
         except StopIteration:
             return None
 
-    def get_stages(self) -> List[LoginStage]:
+    def get_stages(self, request=None, user=None) -> List[LoginStage]:
         stages = []
         adapter = get_adapter(self.request)
-        paths = adapter.get_login_stages()
+        paths = adapter.get_login_stages(request, user)
         for path in paths:
             cls = import_callable(path)
             stage = cls(self, self.request, self.login)
@@ -111,7 +111,7 @@ class LoginStageController:
     def handle(self):
         from allauth.account.internal.stagekit import clear_login, stash_login
 
-        stages = self.get_stages()
+        stages = self.get_stages(self.request, self.login.user)
         for stage in stages:
             if self.is_handled(stage.key):
                 continue
@@ -225,3 +225,35 @@ class PhoneVerificationStage(LoginStage):
         )
         response = headed_redirect_response("account_verify_phone")
         return response, True
+
+class RoleSelectionStage(LoginStage):
+    key = "role_selection"
+    urlname = "account_role_selection"
+
+    def user_has_multiple_roles(self):
+        return len(self.login.user.roles.all()) > 1
+
+    def handle(self):
+        if self.user_has_multiple_roles() and not self.request.session.get("role_id"):
+            response = headed_redirect_response("account_role_selection")
+            return response, True
+        if not self.request.session.get("role_id"):
+            self.request.session["role_id"] = self.login.user.roles.all()[0].id
+        return None, True
+
+class SetPasswordStage(LoginStage):
+    key = "set_password"
+    urlname = "account_set_password"
+
+    def handle(self):
+        print("Request session is ", self.request.session.items())
+        auth_methods = self.request.session.get("account_authentication_methods", [])
+        if len(auth_methods) > 0:
+            for method in auth_methods:
+                if method.get("method") == "code":
+                    return None, True
+        reset_days = self.request.tenant.auth_config.get("password_policy", {}).get("password_expiry_days", 90)
+        if self.login.user.has_password_reset_step(self.request, reset_days):
+            response = headed_redirect_response("account_set_password")
+            return response, True
+        return None, True

@@ -8,6 +8,7 @@ from django.utils.translation import gettext_lazy as _
 
 from allauth import app_settings as allauth_settings
 
+from zango.apps.appauth.models import AppUserModel
 
 if not allauth_settings.MFA_ENABLED:
     raise ImproperlyConfigured(
@@ -27,7 +28,7 @@ class Authenticator(models.Model):
 
     objects = AuthenticatorManager()
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(AppUserModel, on_delete=models.CASCADE)
     type = models.CharField(max_length=20, choices=Type.choices)
     data = models.JSONField()
     created_at = models.DateTimeField(default=timezone.now)
