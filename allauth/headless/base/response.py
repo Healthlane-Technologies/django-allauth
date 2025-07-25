@@ -125,7 +125,6 @@ class BaseAuthenticationResponse(APIResponse):
                     flow["metadata"]["type"] = "email"
 
     def _enrich_role_selection_flow(self, stage, flow: dict) -> None:
-        print("user is ", stage.login.user)
         flow["metadata"] = {}
         roles = {}
         for role in stage.login.user.roles.all():

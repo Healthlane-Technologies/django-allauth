@@ -89,7 +89,6 @@ class PasswordResetVerificationProcess(AbstractCodeVerificationProcess):
         cls, request: HttpRequest
     ) -> Optional["PasswordResetVerificationProcess"]:
         state = request.session.get(PASSWORD_RESET_VERIFICATION_SESSION_KEY)
-        print("state is ", state)
         if not state:
             return None
         process = PasswordResetVerificationProcess(request, state=state)
