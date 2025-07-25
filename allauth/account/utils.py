@@ -303,7 +303,8 @@ def user_pk_to_url_str(user) -> str:
 
 
 def url_str_to_user_pk(pk_str):
-    User = get_user_model()
+    from zango.apps.appauth.models import AppUserModel
+    User = AppUserModel
     remote_field = getattr(User._meta.pk, "remote_field", None)
     if remote_field and getattr(remote_field, "to", None):
         pk_field = User._meta.pk.remote_field.to._meta.pk

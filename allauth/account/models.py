@@ -288,13 +288,14 @@ class Login:
 
     @classmethod
     def deserialize(cls, data):
+        from zango.apps.appauth.models import AppUserModel
         from allauth.account.utils import url_str_to_user_pk
 
         user = None
         user_pk = data["user_pk"]
         if user_pk is not None:
             user = (
-                get_user_model().objects.get(id=url_str_to_user_pk(user_pk))
+                AppUserModel.objects.get(id=url_str_to_user_pk(user_pk))
             )
         try:
             # :-( Knowledge of the `socialaccount` is entering the `account` app.
