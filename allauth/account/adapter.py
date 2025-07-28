@@ -561,6 +561,9 @@ class DefaultAccountAdapter(BaseAdapter):
         django_login(request, user)
 
     def logout(self, request):
+        if getattr(request, "auth", None):
+            token = request.auth
+            token.delete()
         django_logout(request)
 
     def confirm_email(self, request, email_address):
