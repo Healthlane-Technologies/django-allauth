@@ -3,7 +3,6 @@ import time
 from typing import Dict, Optional
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser
 from django.core import signing
 from django.db import models
@@ -15,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from allauth.account import app_settings
 from allauth.account.adapter import get_adapter
 from allauth.account.managers import EmailAddressManager, EmailConfirmationManager
+from allauth.utils import get_user_model
 
 
 from zango.apps.appauth.models import AppUserModel
@@ -293,8 +293,9 @@ class Login:
         user = None
         user_pk = data["user_pk"]
         if user_pk is not None:
+            from zango.apps.appauth.models import AppUserModel
             user = (
-                get_user_model().objects.get(id=url_str_to_user_pk(user_pk))
+                AppUserModel.objects.get(id=url_str_to_user_pk(user_pk))
             )
         try:
             # :-( Knowledge of the `socialaccount` is entering the `account` app.
