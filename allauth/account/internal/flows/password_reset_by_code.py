@@ -72,9 +72,19 @@ class PasswordResetVerificationProcess(AbstractCodeVerificationProcess):
             password_policy = get_auth_priority(request=self.request, policy="password_policy", user=self.user)
             password_reset_policy = password_policy.get("reset", {})
             email_hook = password_reset_policy.get("email_hook", None)
-            adapter.send_mail("account/email/password_reset_code", email, context, email_hook=email_hook)
+            email_content = password_reset_policy.get("email_content", None)
+            if email_content:
+                email_content = email_content.format(code=code)
+            email_config_key = password_reset_policy.get("email_config_key", None)
+            email_subject = password_reset_policy.get("email_subject", None)
+            adapter.send_mail("account/email/password_reset_code", email, context, email_hook=email_hook, content=email_content, config_key=email_config_key, subject=email_subject)
         if phone:
-            adapter.send_sms(user=self.user, phone=phone, request=self.request, code=code, flow="reset_password")
+            password_policy = get_auth_priority(request=self.request, policy="password_policy", user=self.user)
+            password_reset_policy = password_policy.get("reset", {})
+            sms_config_key = password_reset_policy.get("sms_config_key", None)
+            sms_extra_data = password_reset_policy.get("sms_extra_data", None)
+            sms_hook = password_reset_policy.get("sms_hook", None)
+            adapter.send_sms(user=self.user, phone=phone, request=self.request, code=code, flow="reset_password", config_key=sms_config_key, extra_data=sms_extra_data, hook=sms_hook)
 
     @classmethod
     def initiate(cls, *, request, user, email: str | None = None, phone: str | None = None):

@@ -75,7 +75,12 @@ class LoginCodeVerificationProcess(AbstractCodeVerificationProcess):
         adapter = get_adapter()
         if self.user:
             code = adapter.generate_login_code(phone=phone)
-            adapter.send_sms(user=self.user, phone=phone, request=self.request, code=code, flow="login_code")
+            login_policy = get_auth_priority(request=self.request, policy="login_methods", user=self.user)
+            sms_config_key = login_policy.get("otp", {}).get("sms_config_key", None)
+            sms_extra_data = login_policy.get("otp", {}).get("sms_extra_data", None)
+            sms_hook = login_policy.get("otp", {}).get("sms_hook", None)
+            sms_content = login_policy.get("otp", {}).get("sms_content", None)
+            adapter.send_sms(user=self.user, phone=phone, request=self.request, code=code, flow="login_code", config_key=sms_config_key, extra_data=sms_extra_data, hook=sms_hook, content=sms_content)
             self.state["code"] = code
         else:
             adapter.send_unknown_account_sms(phone)
@@ -93,7 +98,12 @@ class LoginCodeVerificationProcess(AbstractCodeVerificationProcess):
             }
             login_policy = get_auth_priority(request=self.request, policy="login_methods", user=self.user)
             email_hook = login_policy.get("otp", {}).get("email_hook", None)
-            adapter.send_mail("account/email/login_code", email, context, email_hook=email_hook)
+            email_content = login_policy.get("otp", {}).get("email_content", None)
+            if email_content:
+                email_content = email_content.format(code=code)
+            email_config_key = login_policy.get("otp", {}).get("email_config_key", None)
+            email_subject = login_policy.get("otp", {}).get("email_subject", None)
+            adapter.send_mail("account/email/login_code", email, context, email_hook=email_hook, content=email_content, config_key=email_config_key, subject=email_subject)
             self.state["code"] = code
         self.add_sent_message({"email": email, "recipient": email})
 

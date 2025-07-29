@@ -206,7 +206,7 @@ class DefaultAccountAdapter(BaseAdapter):
             msg.content_subtype = "html"  # Main content is now text/html
         return msg
 
-    def send_mail(self, template_prefix: str, email: str, context: dict, email_hook: str | None = None) -> None:
+    def send_mail(self, template_prefix: str, email: str, context: dict, email_hook: str | None = None, config_key: str | None = None, subject: str | None = None, content: str | None = None) -> None:
         from zango.apps.appauth.tasks import send_email
         request = globals()["context"].request
         ctx = {
@@ -218,10 +218,11 @@ class DefaultAccountAdapter(BaseAdapter):
         msg = self.render_mail(template_prefix, email, ctx)
         send_email.delay(
             to=email,
-            subject=msg.subject,
-            body=msg.body,
+            subject=subject or msg.subject,
+            body=content or msg.body,
             tenant_id=request.tenant.id,
-            email_hook=email_hook
+            email_hook=email_hook,
+            config_key=config_key
         )
 
     def _validate_login_policy(self, request, method):
@@ -632,7 +633,12 @@ class DefaultAccountAdapter(BaseAdapter):
         password_policy = get_auth_priority(request=self.request, policy="password_policy", user=user)
         password_reset_policy = password_policy.get("reset", {})
         email_hook = password_reset_policy.get("email_hook", None)
-        return self.send_mail("account/email/password_reset_key", email, context, email_hook=email_hook)
+        email_content = password_reset_policy.get("email_content", None)
+        if email_content:
+            email_content = email_content.format(reset_url=context["password_reset_url"])
+        email_config_key = password_reset_policy.get("email_config_key", None)
+        email_subject = password_reset_policy.get("email_subject", None)
+        return self.send_mail("account/email/password_reset_key", email, context, email_hook=email_hook, content=email_content, config_key=email_config_key, subject=email_subject)
 
     def get_reset_password_from_key_url(self, key):
         """
@@ -944,7 +950,7 @@ class DefaultAccountAdapter(BaseAdapter):
     def send_account_already_exists_sms(self, phone: str) -> None:
         pass
 
-    def send_sms(self, phone: str, code: str, flow: str, request, **kwargs):
+    def send_sms(self, phone: str, code: str, flow: str, request, config_key=None, extra_data=None, hook=None, content=None, **kwargs):
         """
         Send SMS with OTP code based on the specified flow.
         
@@ -965,12 +971,12 @@ class DefaultAccountAdapter(BaseAdapter):
 
         sms_configs = {
             "login_code": {
-                "message": "Your login code is",
+                "message": content or "Your login code is {code}",
                 "subject": "Login Code",
                 "otp_type": "login_code"
             },
             "reset_password": {
-                "message": "Your password reset code is",
+                "message": content or "Your password reset code is {code}",
                 "subject": "Reset Password", 
                 "otp_type": "reset_password"
             }
@@ -997,6 +1003,9 @@ class DefaultAccountAdapter(BaseAdapter):
             subject=config["subject"],
             phone=phone,
             code=code,
+            hook=hook,
+            config_key=config_key,
+            extra_data=extra_data
         )
 
     @property

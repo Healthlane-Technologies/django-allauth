@@ -637,19 +637,20 @@ class ResetPasswordForm(forms.Form):
         # if not self.users and not app_settings.PREVENT_ENUMERATION:
         #     raise get_adapter().validation_error("unknown_email")
         try:
-            self.user = get_user_model().objects.get(email=email)
+            from zango.apps.appauth.models import AppUserModel
+            self.user = AppUserModel.objects.get(email=email)
             return self.cleaned_data["email"]
-        except get_user_model().DoesNotExist:
+        except AppUserModel.DoesNotExist:
             raise get_adapter().validation_error("unknown_email")
     
     def clean_phone(self):
-        password_policy = get_auth_priority(policy="password_policy")
-        password_reset_policy = password_policy.get("reset", {})
-        if "sms" not in password_reset_policy.get("allowed_methods", []):
-            raise get_adapter().validation_error("sms_not_allowed")
         phone = self.cleaned_data["phone"]
         if not phone:
-            return phone
+            return
+        password_policy = get_auth_priority(policy="password_policy")
+        password_reset_policy = password_policy.get("reset", {})
+        if phone and "sms" not in password_reset_policy.get("allowed_methods", []):
+            raise get_adapter().validation_error("sms_not_allowed")
         try:
             self.user = get_user_model().objects.get(mobile=phone)
             return self.cleaned_data["phone"]
@@ -786,7 +787,8 @@ class RequestLoginCodeForm(forms.Form):
         adapter = get_adapter()
         email = self.cleaned_data["email"]
         if email:
-            users = filter_users_by_email(email, is_active=True, prefer_verified=True)
+            from zango.apps.appauth.models import AppUserModel
+            users = AppUserModel.objects.filter(email__iexact=email)
             if not app_settings.PREVENT_ENUMERATION:
                 if not users:
                     raise adapter.validation_error("unknown_email")
