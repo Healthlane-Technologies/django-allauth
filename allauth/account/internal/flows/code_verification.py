@@ -68,7 +68,15 @@ class AbstractCodeVerificationProcess(abc.ABC):
         return self
 
     def is_valid(self) -> bool:
-        return time.time() - self.state["at"] <= self.timeout
+        from zango.apps.appauth.models import OTPCode
+        try:
+            if not self.code:
+                return False
+            if not OTPCode.objects.get(code=self.code).is_valid():
+                return False
+        except OTPCode.DoesNotExist:
+            return False
+        return True
 
     @abc.abstractmethod
     def persist(self): ...  # noqa: E704

@@ -35,6 +35,8 @@ from .utils import (
     user_username,
 )
 
+from zango.core.utils import get_auth_priority
+
 
 class EmailAwarePasswordResetTokenGenerator(PasswordResetTokenGenerator):
     def _make_hash_value(self, user, timestamp):
@@ -619,29 +621,59 @@ class SetPasswordForm(PasswordVerificationMixin, UserForm):
 
 
 class ResetPasswordForm(forms.Form):
-    email = EmailField(required=True)
+    email = EmailField(required=False)
+    phone = forms.CharField(required=False)
 
     def clean_email(self):
+        password_policy = get_auth_priority(policy="password_policy")
+        password_reset_policy = password_policy.get("reset", {})
         email = self.cleaned_data["email"].lower()
+        if not email:
+            return email
+        if "email" not in password_reset_policy.get("allowed_methods", []):
+            raise get_adapter().validation_error("email_not_allowed")
         email = get_adapter().clean_email(email)
-        self.users = filter_users_by_email(email, is_active=True, prefer_verified=True)
-        if not self.users and not app_settings.PREVENT_ENUMERATION:
+        # self.users = filter_users_by_email(email, is_active=True, prefer_verified=True)
+        # if not self.users and not app_settings.PREVENT_ENUMERATION:
+        #     raise get_adapter().validation_error("unknown_email")
+        try:
+            self.user = get_user_model().objects.get(email=email)
+            return self.cleaned_data["email"]
+        except get_user_model().DoesNotExist:
             raise get_adapter().validation_error("unknown_email")
-        return self.cleaned_data["email"]
+    
+    def clean_phone(self):
+        password_policy = get_auth_priority(policy="password_policy")
+        password_reset_policy = password_policy.get("reset", {})
+        if "sms" not in password_reset_policy.get("allowed_methods", []):
+            raise get_adapter().validation_error("sms_not_allowed")
+        phone = self.cleaned_data["phone"]
+        if not phone:
+            return phone
+        try:
+            self.user = get_user_model().objects.get(mobile=phone)
+            return self.cleaned_data["phone"]
+        except get_user_model().DoesNotExist:
+            raise get_adapter().validation_error("unknown_phone")
 
     def save(self, request, **kwargs) -> str:
-        email = self.cleaned_data["email"]
-        # if app_settings.PASSWORD_RESET_BY_CODE_ENABLED:
-        #     flows.password_reset_by_code.PasswordResetVerificationProcess.initiate(
-        #         request=request,
-        #         user=(self.users[0] if self.users else None),
-        #         email=email,
-        #     )
-        # else:
-        token_generator = kwargs.get("token_generator", default_token_generator)
-        flows.password_reset.request_password_reset(
-            request, email, self.users, token_generator
-        )
+        email = self.cleaned_data.get("email", "")
+        phone = self.cleaned_data.get("phone")
+        password_policy = get_auth_priority(policy='password_policy', request=request)
+        reset_policy = password_policy.get('reset', {})
+        if reset_policy.get('enabled', False):
+            if reset_policy.get("by_code", False):
+                flows.password_reset_by_code.PasswordResetVerificationProcess.initiate(
+                    request=request,
+                    user=(self.user if self.user else None),
+                    email=email,
+                    phone=phone
+                )
+            else:
+                token_generator = kwargs.get("token_generator", default_token_generator)
+                flows.password_reset.request_password_reset(
+                    request, email, [self.user], token_generator
+                )
         return email
 
 

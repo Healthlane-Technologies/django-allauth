@@ -235,7 +235,7 @@ class RoleSelectionStage(LoginStage):
 
     def handle(self):
         if self.user_has_multiple_roles() and not self.request.session.get("role_id"):
-            response = headed_redirect_response("account_role_selection")
+            response = headed_redirect_response("set-role")
             return response, True
         if not self.request.session.get("role_id"):
             self.request.session["role_id"] = self.login.user.roles.all()[0].id
@@ -246,7 +246,6 @@ class SetPasswordStage(LoginStage):
     urlname = "account_set_password"
 
     def handle(self):
-        print("Request session is ", self.request.session.items())
         auth_methods = self.request.session.get("account_authentication_methods", [])
         if len(auth_methods) > 0:
             for method in auth_methods:

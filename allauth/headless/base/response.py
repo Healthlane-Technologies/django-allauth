@@ -110,6 +110,7 @@ class BaseAuthenticationResponse(APIResponse):
             flows.append(pending_flow)
 
     def _enrich_mfa_flow(self, stage, flow: dict, request) -> None:
+        print("user is ", stage.login.user)
         flow["metadata"] = {}
         from allauth.mfa.adapter import get_adapter as get_mfa_adapter
 
@@ -124,6 +125,7 @@ class BaseAuthenticationResponse(APIResponse):
                     flow["metadata"]["type"] = "email"
 
     def _enrich_role_selection_flow(self, stage, flow: dict) -> None:
+        print("user is ", stage.login.user)
         flow["metadata"] = {}
         roles = {}
         for role in stage.login.user.roles.all():

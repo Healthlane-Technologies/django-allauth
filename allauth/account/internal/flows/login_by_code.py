@@ -15,6 +15,7 @@ from allauth.account.internal.stagekit import clear_login, stash_login
 from allauth.account.models import Login
 from allauth.account.stages import LoginByCodeStage, LoginStageController
 
+from zango.core.utils import get_auth_priority
 
 LOGIN_CODE_STATE_KEY = "login_code"
 
@@ -74,7 +75,7 @@ class LoginCodeVerificationProcess(AbstractCodeVerificationProcess):
         adapter = get_adapter()
         if self.user:
             code = adapter.generate_login_code(phone=phone)
-            adapter.send_verification_code_sms(user=self.user, phone=phone, request=self.request, code=code)
+            adapter.send_sms(user=self.user, phone=phone, request=self.request, code=code, flow="login_code")
             self.state["code"] = code
         else:
             adapter.send_unknown_account_sms(phone)
@@ -86,7 +87,13 @@ class LoginCodeVerificationProcess(AbstractCodeVerificationProcess):
             send_unknown_account_mail(self.request, email)
         else:
             code = adapter.generate_login_code(email=email)
-            adapter.send_mail(email, code=code)
+            context = {
+                "request": self.request,
+                "code": code,
+            }
+            login_policy = get_auth_priority(request=self.request, policy="login_methods", user=self.user)
+            email_hook = login_policy.get("otp", {}).get("email_hook", None)
+            adapter.send_mail("account/email/login_code", email, context, email_hook=email_hook)
             self.state["code"] = code
         self.add_sent_message({"email": email, "recipient": email})
 

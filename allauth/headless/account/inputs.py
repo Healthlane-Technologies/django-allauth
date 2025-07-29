@@ -24,6 +24,7 @@ from allauth.headless.adapter import get_adapter
 from allauth.headless.internal.restkit import inputs
 
 from zango.core.utils import get_auth_priority
+from zango.api.app_auth.profile.v1.utils import PasswordValidationMixin
 
 class SignupInput(BaseSignupForm, inputs.Input):
     password = inputs.CharField()
@@ -52,7 +53,7 @@ class LoginInput(inputs.Input):
         policy = get_auth_priority(policy="login_methods")
         password_policy = policy.get("password", {})
         for field in ["email", "phone"]:
-            if field not in password_policy.get("allowed_usernames"):
+            if field not in password_policy.get("allowed_usernames", []):
                 del self.fields[field]
         if len(password_policy.get("allowed_usernames")) == 1:
             self.fields[next(iter(password_policy.get("allowed_usernames")))].required = True
@@ -131,7 +132,9 @@ class ResetPasswordKeyInput(inputs.Input):
         super().__init__(*args, **kwargs)
 
     def clean_key(self):
-        if account_settings.PASSWORD_RESET_BY_CODE_ENABLED:
+        password_policy = get_auth_priority(policy="password_policy")
+        password_reset_policy = password_policy.get("reset", {})
+        if password_reset_policy.get("by_code", False):
             return self._clean_key_code()
         else:
             return self._clean_key_link()
@@ -152,7 +155,7 @@ class ResetPasswordKeyInput(inputs.Input):
         return key
 
 
-class ResetPasswordInput(ResetPasswordKeyInput):
+class ResetPasswordInput(ResetPasswordKeyInput, PasswordValidationMixin):
     password = inputs.CharField()
 
     def clean(self):
@@ -160,6 +163,9 @@ class ResetPasswordInput(ResetPasswordKeyInput):
         password = self.cleaned_data.get("password")
         if self.user and password is not None:
             try:
+                res = self.run_all_validations(self.user, password)
+                if not res.get("validation"):
+                    raise ValidationError(res.get("msg"))
                 get_account_adapter().clean_password(password, user=self.user)
             except ValidationError as e:
                 self.add_error("password", e)

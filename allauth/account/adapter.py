@@ -41,8 +41,9 @@ from allauth.core.internal.cryptokit import generate_user_code
 from allauth.core.internal.httpkit import headed_redirect_response, is_headless_request
 from allauth.utils import generate_unique_username, import_attribute
 
-from zango.core.utils import get_auth_priority, get_package_url
+from zango.core.utils import get_auth_priority
 from zango.apps.appauth.tasks import send_otp
+from zango.apps.appauth.models import OldPasswords
 
 
 class DefaultAccountAdapter(BaseAdapter):
@@ -94,6 +95,8 @@ class DefaultAccountAdapter(BaseAdapter):
         "select_only_one": _("Please select only one."),
         "same_as_current": _("The new value must be different from the current one."),
         "rate_limited": _("Be patient, you are sending too many requests."),
+        "email_not_allowed": _("Email address cannot be used for this flow."),
+        "sms_not_allowed": _("Phone number cannot be used for this flow."),
     }
 
     def stash_verified_email(self, request, email):
@@ -203,24 +206,40 @@ class DefaultAccountAdapter(BaseAdapter):
             msg.content_subtype = "html"  # Main content is now text/html
         return msg
 
-    def send_mail(self, email: str, code: str) -> None:
-
+    def send_mail(self, template_prefix: str, email: str, context: dict, email_hook: str | None = None) -> None:
+        from zango.apps.appauth.tasks import send_email
         request = globals()["context"].request
+        ctx = {
+            "request": request,
+            "email": email,
+            "current_site": get_current_site(request),
+        }
+        ctx.update(context)
+        msg = self.render_mail(template_prefix, email, ctx)
+        send_email.delay(
+            to=email,
+            subject=msg.subject,
+            body=msg.body,
+            tenant_id=request.tenant.id,
+            email_hook=email_hook
+        )
 
-        policy = get_auth_priority(policy="login_methods")
-        otp_methods = policy.get("otp",{}).get("allowed_methods")
-        if "email" in otp_methods:
-            send_otp.delay(
-                method="email",
-                otp_type="login_code",
-                tenant_id=request.tenant.id,
-                message="Your login code is",
-                subject="Login Code",
-                email=email,
-                code=code,
-            )
-        else:
-            raise ValueError("Email OTP is not enabled")
+    def _validate_login_policy(self, request, method):
+        """Validate login code policy permissions for email or SMS."""
+        policy = get_auth_priority(policy="login_methods", request=request)
+        otp_methods = policy.get("otp", {}).get("allowed_methods", [])
+        
+        if method not in otp_methods:
+            raise ValueError(f"{method.upper()} OTP is not enabled")
+
+
+    def _validate_reset_policy(self, request, method):
+        """Validate reset password policy permissions for email or SMS."""
+        password_policy = get_auth_priority(policy="password_policy", request=request)
+        reset_policy = password_policy.get("reset", {})
+            
+        if method not in reset_policy.get("allowed_methods", []):
+            raise ValueError(f"Reset password by {method} is not enabled")
 
     def get_signup_redirect_url(self, request):
         """
@@ -558,6 +577,9 @@ class DefaultAccountAdapter(BaseAdapter):
         """
         user.set_password(password)
         user.save()
+        obj = OldPasswords.objects.create(user=user)
+        obj.setPasswords(user.password)
+        obj.save()
 
     def get_user_search_fields(self):
         ret = []
@@ -604,7 +626,10 @@ class DefaultAccountAdapter(BaseAdapter):
         in your app, you may want to intervene here by checking `user.has_usable_password`
 
         """
-        return self.send_mail("account/email/password_reset_key", email, context)
+        password_policy = get_auth_priority(request=self.request, policy="password_policy", user=user)
+        password_reset_policy = password_policy.get("reset", {})
+        email_hook = password_reset_policy.get("email_hook", None)
+        return self.send_mail("account/email/password_reset_key", email, context, email_hook=email_hook)
 
     def get_reset_password_from_key_url(self, key):
         """
@@ -853,11 +878,17 @@ class DefaultAccountAdapter(BaseAdapter):
         if phone:
             return generate_otp(otp_type="login_code", phone=phone)
 
-    def generate_password_reset_code(self) -> str:
+    def generate_password_reset_code(self, email=None, phone=None) -> str:
         """
         Generates a new password reset code.
         """
-        return generate_user_code(length=8)
+        from zango.apps.appauth.models import generate_otp
+
+        if email:
+            return generate_otp(otp_type="reset_password", email=email)
+        if phone:
+            return generate_otp(otp_type="reset_password", phone=phone)
+        raise ValueError("Email or phone is required")
 
     def generate_email_verification_code(self) -> str:
         """
@@ -910,17 +941,58 @@ class DefaultAccountAdapter(BaseAdapter):
     def send_account_already_exists_sms(self, phone: str) -> None:
         pass
 
-    def send_verification_code_sms(self, user, phone: str, request, code: str, **kwargs):
+    def send_sms(self, phone: str, code: str, flow: str, request, **kwargs):
         """
-        Sends a verification code.
+        Send SMS with OTP code based on the specified flow.
+        
+        Args:
+            phone: Recipient phone number
+            code: OTP code to send
+            flow: SMS flow type ('login_code' or 'reset_password')
+            request: HTTP request object
+            
+        Raises:
+            ValueError: If flow is invalid or policies don't allow the operation
         """
+        if not phone or not phone.strip():
+            raise ValueError("Phone number is required")
+        
+        if not code or not code.strip():
+            raise ValueError("Code is required")
+
+        sms_configs = {
+            "login_code": {
+                "message": "Your login code is",
+                "subject": "Login Code",
+                "otp_type": "login_code"
+            },
+            "reset_password": {
+                "message": "Your password reset code is",
+                "subject": "Reset Password", 
+                "otp_type": "reset_password"
+            }
+        }
+        
+        # Validate flow type
+        if flow not in sms_configs:
+            valid_flows = list(sms_configs.keys())
+            raise ValueError(f"Invalid flow '{flow}'. Valid flows are: {valid_flows}")
+        
+        # Flow-specific validation
+        if flow == "login_code":
+            self._validate_login_policy(request, "sms")
+        elif flow == "reset_password":
+            self._validate_reset_policy(request, "sms")
+        
+        # Get configuration and send SMS
+        config = sms_configs[flow]
         send_otp.delay(
             method="sms",
-            otp_type="login_code",
-            message="Your login code is",
-            subject="Login Code",
-            phone=phone,
+            otp_type=config["otp_type"],
             tenant_id=request.tenant.id,
+            message=config["message"],
+            subject=config["subject"],
+            phone=phone,
             code=code,
         )
 
