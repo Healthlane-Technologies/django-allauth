@@ -652,9 +652,10 @@ class ResetPasswordForm(forms.Form):
         if phone and "sms" not in password_reset_policy.get("allowed_methods", []):
             raise get_adapter().validation_error("sms_not_allowed")
         try:
-            self.user = get_user_model().objects.get(mobile=phone)
+            from zango.apps.appauth.models import AppUserModel
+            self.user = AppUserModel.objects.get(mobile=phone)
             return self.cleaned_data["phone"]
-        except get_user_model().DoesNotExist:
+        except AppUserModel.DoesNotExist:
             raise get_adapter().validation_error("unknown_phone")
 
     def save(self, request, **kwargs) -> str:

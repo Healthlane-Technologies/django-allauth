@@ -84,7 +84,8 @@ class PasswordResetVerificationProcess(AbstractCodeVerificationProcess):
             sms_config_key = password_reset_policy.get("sms_config_key", None)
             sms_extra_data = password_reset_policy.get("sms_extra_data", None)
             sms_hook = password_reset_policy.get("sms_hook", None)
-            adapter.send_sms(user=self.user, phone=phone, request=self.request, code=code, flow="reset_password", config_key=sms_config_key, extra_data=sms_extra_data, hook=sms_hook)
+            sms_content = password_reset_policy.get("sms_content", None)
+            adapter.send_sms(user=self.user, phone=phone, request=self.request, code=code, flow="reset_password", config_key=sms_config_key, extra_data=sms_extra_data, hook=sms_hook, content=sms_content)
 
     @classmethod
     def initiate(cls, *, request, user, email: str | None = None, phone: str | None = None):
