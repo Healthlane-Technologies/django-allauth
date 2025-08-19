@@ -48,12 +48,7 @@ def logout_on_password_change(request: HttpRequest, user: AbstractBaseUser) -> b
     # Since it is the default behavior of Django to invalidate all sessions on
     # password change, this function actually has to preserve the session when
     # logout isn't desired.
-    logged_out = True
-    password_policy = get_auth_priority("password_policy", request=request, user=user)
-    reset_password_policy = password_policy.get("reset", {})
-    if reset_password_policy.get("login_after_reset", False):
-        update_session_auth_hash(request, user)  # type: ignore[arg-type]
-        logged_out = False
-    else:
-        logout(request)
+    logged_out = False
+    update_session_auth_hash(request, user)  # type: ignore[arg-type]
+    logged_out = False
     return logged_out
