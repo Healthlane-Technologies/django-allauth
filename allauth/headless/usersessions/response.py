@@ -14,8 +14,8 @@ class SessionsResponse(APIResponse):
             "is_current": session.is_current(),
             "id": session.pk,
         }
-        if app_settings.TRACK_ACTIVITY:
-            data["last_seen_at"] = session.last_seen_at.timestamp()
+        # if app_settings.TRACK_ACTIVITY:
+        data["last_seen_at"] = session.last_seen_at.timestamp()
         return data
 
 

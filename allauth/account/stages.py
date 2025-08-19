@@ -66,7 +66,7 @@ class LoginStageController:
         ctrl = LoginStageController(request, login)
         if ctrl.state.get("current") != stage_key:
             return None
-        stages = ctrl.get_stages(request)
+        stages = ctrl.get_stages(request, login.user)
         for stage in stages:
             if stage.key == stage_key:
                 return stage
@@ -84,7 +84,7 @@ class LoginStageController:
 
     def get_pending_stage(self) -> Optional[LoginStage]:
         ret = None
-        stages = self.get_stages()
+        stages = self.get_stages(request=self.request, user=self.login.user)
         for stage in stages:
             if self.is_handled(stage.key):
                 continue

@@ -89,7 +89,8 @@ class LoginCodeVerificationProcess(AbstractCodeVerificationProcess):
     def send_by_email(self, email):
         adapter = get_adapter()
         if not self.user:
-            send_unknown_account_mail(self.request, email)
+            raise ValueError("User with email {} does not exist".format(email))
+            # send_unknown_account_mail(self.request, email)
         else:
             code = adapter.generate_login_code(email=email)
             context = {

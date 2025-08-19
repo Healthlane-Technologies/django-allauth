@@ -8,12 +8,12 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('appauth', '0008_appusermodel_auth_config_userrolemodel_auth_config_and_more'),
-        ('mfa', '0003_authenticator_type_uniq'),
+        ('usersessions', '0001_initial'),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='authenticator',
+            model_name='usersession',
             name='user',
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='appauth.appusermodel'),
         ),
