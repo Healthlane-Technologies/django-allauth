@@ -1,5 +1,7 @@
+import json
+
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import HttpResponseRedirect
+from django.http import JsonResponse
 
 from allauth import app_settings as allauth_settings
 from allauth.core.exceptions import (
@@ -11,6 +13,9 @@ from allauth.core.internal import httpkit
 from allauth.headless.internal.authkit import AuthenticationStatus
 from allauth.socialaccount.internal import flows, statekit
 from allauth.socialaccount.providers.base.constants import AuthError, AuthProcess
+from allauth.headless.base.response import AuthenticationResponse
+
+from zango.core.api import get_api_response
 
 
 def on_authentication_error(
@@ -44,8 +49,13 @@ def on_authentication_error(
         return
     if not next_url:
         next_url = httpkit.get_frontend_url(request, "socialaccount_login_error") or "/"
-    next_url = httpkit.add_query_params(next_url, params)
-    raise ImmediateHttpResponse(HttpResponseRedirect(next_url))
+    error_response = {
+        "error": {
+            "message": str(exception) if exception else error,
+        },
+        # "error_process": params["error_process"],
+    }
+    raise ImmediateHttpResponse(JsonResponse(error_response, status=400))
 
 
 def complete_token_login(request, sociallogin):
@@ -57,8 +67,10 @@ def complete_login(request, sociallogin):
     Called when `sociallogin.is_headless`.
     """
     error = None
+    status = None
+    resp = None
     try:
-        flows.login.complete_login(request, sociallogin, raises=True)
+        resp = flows.login.complete_login(request, sociallogin, raises=True)
     except ReauthenticationRequired:
         error = "reauthentication_required"
     except SignupClosedException:
@@ -67,6 +79,8 @@ def complete_login(request, sociallogin):
         error = "permission_denied"
     except ValidationError as e:
         error = e.code
+    except Exception as e:
+        return get_api_response(success=False, response_content={"error": {"message": str(e)}}, status=400)
     else:
         # At this stage, we're either:
         # 1) logged in (or in of the login pipeline stages, such as email verification)
@@ -85,10 +99,25 @@ def complete_login(request, sociallogin):
             ]
         ):
             error = AuthError.UNKNOWN
+    if status and status.get_pending_stage() and resp:
+        request.session["sociallogin"] = sociallogin.serialize()
+        authresponse = AuthenticationResponse.from_response(request, resp)
+        data = json.loads(authresponse.content.decode("utf-8"))
+        return get_api_response(
+            success=True if authresponse.status_code == 200 else False,
+            response_content=data,
+            status=authresponse.status_code,
+        )
     next_url = sociallogin.state["next"]
     if error:
         next_url = httpkit.add_query_params(
             next_url,
             {"error": error, "error_process": sociallogin.state["process"]},
         )
-    return HttpResponseRedirect(next_url)
+    resp =  AuthenticationResponse(request)
+    data = json.loads(resp.content.decode("utf-8"))
+    return get_api_response(
+        success=True if resp.status_code == 200 else False,
+        response_content=data,
+        status=resp.status_code,
+    )

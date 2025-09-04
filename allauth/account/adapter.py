@@ -324,8 +324,8 @@ class DefaultAccountAdapter(BaseAdapter):
         """
         from .utils import user_email, user_field, user_username
 
-        first_name = user_field(user, "first_name")
-        last_name = user_field(user, "last_name")
+        name = user_field(user, "name")
+        # last_name = user_field(user, "last_name")
         email = user_email(user)
         username = user_username(user)
         if app_settings.USER_MODEL_USERNAME_FIELD:
@@ -333,7 +333,7 @@ class DefaultAccountAdapter(BaseAdapter):
                 user,
                 username
                 or self.generate_unique_username(
-                    [first_name, last_name, email, username, "user"]
+                    [name, email, username, "user"]
                 ),
             )
 
@@ -555,6 +555,10 @@ class DefaultAccountAdapter(BaseAdapter):
             "account/messages/logged_in.txt",
             {"user": user},
         )
+
+        if request.session.get("sociallogin"):
+            del request.session["sociallogin"]
+
         return response
 
     def login(self, request, user):

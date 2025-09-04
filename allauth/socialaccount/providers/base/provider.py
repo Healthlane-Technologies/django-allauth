@@ -109,6 +109,7 @@ class Provider:
         # NOTE: Avoid loading models at top due to registry boot...
         from allauth.socialaccount.adapter import get_adapter
         from allauth.socialaccount.models import SocialAccount, SocialLogin
+        from zango.apps.appauth.models import AppUserModel
 
         adapter = get_adapter()
         uid = self.extract_uid(response)
@@ -151,9 +152,14 @@ class Provider:
             phone=phone,
             phone_verified=common_fields.get("phone_verified", False),
         )
-        user = sociallogin.user = adapter.new_user(request, sociallogin)
-        user.set_unusable_password()
+        user = sociallogin.user = AppUserModel()
+        # user.set_unusable_password()
         adapter.populate_user(request, sociallogin, common_fields)
+        try:
+            user = AppUserModel.objects.get(email=email)
+            sociallogin.user = user
+        except AppUserModel.DoesNotExist:
+            pass
         return sociallogin
 
     def extract_uid(self, data) -> str:

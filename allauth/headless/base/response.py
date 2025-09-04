@@ -74,7 +74,7 @@ class BaseAuthenticationResponse(APIResponse):
         if stage_key:
             pending_flow = {"id": stage_key, "is_pending": True}
             if stage and stage_key == "role_selection":
-                self._enrich_role_selection_flow(stage, pending_flow)
+                self._enrich_role_selection_flow(stage, pending_flow, request)
                 return pending_flow
             if stage and stage_key == "set_password":
                 self._enrich_set_password_flow(stage, pending_flow, request)
@@ -124,7 +124,7 @@ class BaseAuthenticationResponse(APIResponse):
                 else:
                     flow["metadata"]["type"] = "email"
 
-    def _enrich_role_selection_flow(self, stage, flow: dict) -> None:
+    def _enrich_role_selection_flow(self, stage, flow: dict, request) -> None:
         flow["metadata"] = {}
         roles = {}
         for role in stage.login.user.roles.all():

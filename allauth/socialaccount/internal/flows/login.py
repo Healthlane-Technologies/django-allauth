@@ -1,4 +1,4 @@
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponseBadRequest
 from django.shortcuts import render
 
 from allauth.account import app_settings as account_settings
@@ -40,7 +40,7 @@ def pre_social_login(request, sociallogin):
 
 def complete_login(request, sociallogin, raises=False):
     try:
-        pre_social_login(request, sociallogin)
+        # pre_social_login(request, sociallogin)
         process = sociallogin.state.get("process")
         if process == AuthProcess.REDIRECT:
             return _redirect(request, sociallogin)
@@ -76,7 +76,7 @@ def _authenticate(request, sociallogin):
         # Login existing user
         ret = _login(request, sociallogin)
     else:
-        # New social user
+        raise Exception("Invalid social login, user not found.")
         ret = process_signup(request, sociallogin)
     return ret
 

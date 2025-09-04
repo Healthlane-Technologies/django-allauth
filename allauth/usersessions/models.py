@@ -32,6 +32,10 @@ class UserSessionManager(models.Manager):
         return ret
 
     def create_from_request(self, request: HttpRequest):
+        if not isinstance(request.user, AppUserModel):
+            return
+
+
         if not request.user.is_authenticated:
             raise ValueError()
         if not request.session.session_key:

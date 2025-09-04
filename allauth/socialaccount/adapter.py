@@ -128,8 +128,8 @@ class DefaultSocialAccountAdapter(BaseAdapter):
         user_username(user, username or "")
         user_email(user, valid_email_or_none(email) or "")
         name_parts = (name or "").partition(" ")
-        user_field(user, "first_name", first_name or name_parts[0])
-        user_field(user, "last_name", last_name or name_parts[2])
+        user_field(user, "name", f"{first_name} {last_name}"  or f"{name_parts[0]} {name_parts[2]}")
+        # user_field(user, "last_name", last_name or name_parts[2])
         return user
 
     def get_connect_redirect_url(self, request, socialaccount):

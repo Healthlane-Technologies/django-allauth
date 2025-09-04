@@ -396,10 +396,10 @@ class SocialLogin:
             wipe_password,
         )
 
-        if self._did_authenticate_by_email:
-            wipe_password(request, self.user, self._did_authenticate_by_email)
-            if app_settings.EMAIL_AUTHENTICATION_AUTO_CONNECT:
-                self.connect(context.request, self.user)
+        # if self._did_authenticate_by_email:
+        #     wipe_password(request, self.user, self._did_authenticate_by_email)
+        #     if app_settings.EMAIL_AUTHENTICATION_AUTO_CONNECT:
+        #         self.connect(context.request, self.user)
 
     def get_redirect_url(self, request) -> Optional[str]:
         url = self.state.get("next")
