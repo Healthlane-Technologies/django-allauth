@@ -25,7 +25,7 @@ from allauth.socialaccount.providers.base.views import BaseLoginView
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client, OAuth2Error
 from allauth.utils import build_absolute_uri, get_request_param
 
-from zango.core.utils import get_package_url
+from zango.core.utils import get_auth_priority
 
 
 class OAuth2Adapter:
@@ -55,10 +55,16 @@ class OAuth2Adapter:
         raise NotImplementedError
 
     def get_callback_url(self, request, app):
-        # callback_url = reverse(self.provider_id + "_callback")
         protocol = self.redirect_uri_protocol
-        callback_url = get_package_url(request, "oauth/callback", "login")
-        return callback_url
+        login_methods = get_auth_priority(request=request, policy="login_methods")
+        oidc_config = login_methods.get("oidc", {})
+        callback_url = ""
+        if oidc_config:
+            for p in login_methods.get("oidc", {}).get("providers", []):
+                if self.provider_id == p["name"].lower():
+                    callback_url = p["redirect_url"]
+                    break
+        callback_url = f"{callback_url}?provider={self.provider_id}"
         return build_absolute_uri(request, callback_url, protocol)
 
     def parse_token(self, data):

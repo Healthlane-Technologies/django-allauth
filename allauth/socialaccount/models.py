@@ -71,6 +71,13 @@ class SocialApp(models.Model):
         verbose_name=_("key"), max_length=191, blank=True, help_text=_("Key")
     )
     settings = models.JSONField(default=dict, blank=True)
+    enabled = models.BooleanField(default=False)
+    redirect_url = models.URLField(
+        verbose_name=_("redirect URL"),
+        max_length=200,
+        blank=True,
+        help_text=_("Redirect URL"),
+    )
 
     if allauth.app_settings.SITES_ENABLED:
         # Most apps can be used across multiple domains, therefore we use
