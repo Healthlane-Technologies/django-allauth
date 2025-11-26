@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.http import HttpRequest, HttpResponseRedirect
-from django.urls import reverse
+from django.urls import resolve, reverse
 from django.utils.http import urlencode
 
 from allauth import app_settings as allauth_settings
@@ -12,7 +12,6 @@ from allauth.account.authentication import get_authentication_records
 from allauth.account.internal.flows.login import record_authentication
 from allauth.core.exceptions import ReauthenticationRequired
 from allauth.core.internal.httpkit import deserialize_request, serialize_request
-from allauth.core.internal.urlkit import script_aware_resolve
 from allauth.utils import import_callable
 
 
@@ -58,7 +57,7 @@ def resume_request(request: HttpRequest) -> Optional[HttpResponseRedirect]:
     if state and "request" in state:
         suspended_request = deserialize_request(state["request"], request)
         if suspended_request.path == url:
-            resolved = script_aware_resolve(suspended_request.path)
+            resolved = resolve(suspended_request.path)
             return resolved.func(suspended_request, *resolved.args, **resolved.kwargs)
     return HttpResponseRedirect(url)
 
@@ -95,14 +94,9 @@ def get_reauthentication_flows(user) -> List[Dict]:
             "id": "reauthenticate",
         }
         ret.append(entry)
-    if allauth_settings.MFA_ENABLED:
-        from allauth.mfa.models import Authenticator
-        from allauth.mfa.utils import is_mfa_enabled
+    from allauth.mfa.utils import is_mfa_enabled
 
-        types = []
-        for typ in Authenticator.Type:
-            if is_mfa_enabled(user, types=[typ]):
-                types.append(typ)
-        if types:
-            ret.append({"id": "mfa_reauthenticate", "types": types})
+    enabled, types = is_mfa_enabled(user)
+    if enabled:
+        ret.append({"id": "mfa_reauthenticate", "types": types})
     return ret

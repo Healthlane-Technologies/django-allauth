@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 
 from allauth.idp.oidc.adapter import get_adapter
 
+from zango.apps.appauth.models import AppUserModel
 
 def default_client_id() -> str:
     adapter = get_adapter()
@@ -95,7 +96,7 @@ class Client(models.Model):
         ),
     )
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE
+        AppUserModel, blank=True, null=True, on_delete=models.CASCADE
     )
     skip_consent = models.BooleanField(
         default=False, help_text="Flag to allow skip the consent screen for this client"
@@ -179,7 +180,7 @@ class Token(models.Model):
     hash = models.CharField(max_length=255)
     client = models.ForeignKey(Client, on_delete=models.CASCADE, blank=True, null=True)
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, blank=True, null=True
+        AppUserModel, on_delete=models.CASCADE, blank=True, null=True
     )
     data = models.JSONField(blank=True, null=True, default=None)
     created_at = models.DateTimeField(default=timezone.now)

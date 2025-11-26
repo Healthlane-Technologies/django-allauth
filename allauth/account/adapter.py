@@ -1,5 +1,6 @@
 import html
 import json
+import requests
 import typing
 import warnings
 from urllib.parse import urlparse
@@ -39,6 +40,10 @@ from allauth.core.internal.adapter import BaseAdapter
 from allauth.core.internal.cryptokit import generate_user_code
 from allauth.core.internal.httpkit import headed_redirect_response, is_headless_request
 from allauth.utils import generate_unique_username, import_attribute
+
+from zango.core.utils import get_auth_priority
+from zango.apps.appauth.tasks import send_otp
+from zango.apps.appauth.models import OldPasswords
 
 
 class DefaultAccountAdapter(BaseAdapter):
@@ -90,6 +95,8 @@ class DefaultAccountAdapter(BaseAdapter):
         "select_only_one": _("Please select only one."),
         "same_as_current": _("The new value must be different from the current one."),
         "rate_limited": _("Be patient, you are sending too many requests."),
+        "email_not_allowed": _("Email address cannot be used for this flow."),
+        "sms_not_allowed": _("Phone number cannot be used for this flow."),
     }
 
     def stash_verified_email(self, request, email):
@@ -199,7 +206,8 @@ class DefaultAccountAdapter(BaseAdapter):
             msg.content_subtype = "html"  # Main content is now text/html
         return msg
 
-    def send_mail(self, template_prefix: str, email: str, context: dict) -> None:
+    def send_mail(self, template_prefix: str, email: str, context: dict, email_hook: str | None = None, config_key: str | None = None, subject: str | None = None, content: str | None = None) -> None:
+        from zango.apps.appauth.tasks import send_email
         request = globals()["context"].request
         ctx = {
             "request": request,
@@ -208,7 +216,31 @@ class DefaultAccountAdapter(BaseAdapter):
         }
         ctx.update(context)
         msg = self.render_mail(template_prefix, email, ctx)
-        msg.send()
+        send_email.delay(
+            to=email,
+            subject=subject or msg.subject,
+            body=content or msg.body,
+            tenant_id=request.tenant.id,
+            email_hook=email_hook,
+            config_key=config_key
+        )
+
+    def _validate_login_policy(self, request, method):
+        """Validate login code policy permissions for email or SMS."""
+        policy = get_auth_priority(policy="login_methods", request=request)
+        otp_methods = policy.get("otp", {}).get("allowed_methods", [])
+
+        if method not in otp_methods:
+            raise ValueError(f"{method.upper()} OTP is not enabled")
+
+
+    def _validate_reset_policy(self, request, method):
+        """Validate reset password policy permissions for email or SMS."""
+        password_policy = get_auth_priority(policy="password_policy", request=request)
+        reset_policy = password_policy.get("reset", {})
+
+        if method not in reset_policy.get("allowed_methods", []):
+            raise ValueError(f"Reset password by {method} is not enabled")
 
     def get_signup_redirect_url(self, request):
         """
@@ -526,26 +558,13 @@ class DefaultAccountAdapter(BaseAdapter):
         return response
 
     def login(self, request, user):
-        # HACK: This is not nice. The proper Django way is to use an
-        # authentication backend
-        if not hasattr(user, "backend"):
-            from .auth_backends import AuthenticationBackend
-
-            backends = get_backends()
-            backend = None
-            for b in backends:
-                if isinstance(b, AuthenticationBackend):
-                    # prefer our own backend
-                    backend = b
-                    break
-                elif not backend and hasattr(b, "get_user"):
-                    # Pick the first valid one
-                    backend = b
-            backend_path = ".".join([backend.__module__, backend.__class__.__name__])
-            user.backend = backend_path
+        user.backend = 'zango.apps.appauth.auth_backend.AppUserModelBackend'
         django_login(request, user)
 
     def logout(self, request):
+        if getattr(request, "auth", None):
+            token = request.auth
+            token.delete()
         django_logout(request)
 
     def confirm_email(self, request, email_address):
@@ -560,8 +579,15 @@ class DefaultAccountAdapter(BaseAdapter):
         """
         Sets the password for the user.
         """
+        from zango.apps.appauth.models import AppUserModel
+        if not isinstance(user, AppUserModel):
+                    user = AppUserModel.objects.get(id=user.id)
+
         user.set_password(password)
         user.save()
+        obj = OldPasswords.objects.create(user=user)
+        obj.setPasswords(user.password)
+        obj.save()
 
     def get_user_search_fields(self):
         ret = []
@@ -608,7 +634,15 @@ class DefaultAccountAdapter(BaseAdapter):
         in your app, you may want to intervene here by checking `user.has_usable_password`
 
         """
-        return self.send_mail("account/email/password_reset_key", email, context)
+        password_policy = get_auth_priority(request=self.request, policy="password_policy", user=user)
+        password_reset_policy = password_policy.get("reset", {})
+        email_hook = password_reset_policy.get("email_hook", None)
+        email_content = password_reset_policy.get("email_content", None)
+        if email_content:
+            email_content = email_content.format(reset_url=context["password_reset_url"])
+        email_config_key = password_reset_policy.get("email_config_key", None)
+        email_subject = password_reset_policy.get("email_subject", None)
+        return self.send_mail("account/email/password_reset_key", email, context, email_hook=email_hook, content=email_content, config_key=email_config_key, subject=email_subject)
 
     def get_reset_password_from_key_url(self, key):
         """
@@ -773,12 +807,17 @@ class DefaultAccountAdapter(BaseAdapter):
         key = get_random_string(64).lower()
         return key
 
-    def get_login_stages(self):
+    def get_login_stages(self, request, user=None):
+        from allauth.mfa.utils import is_mfa_enabled
+
         ret = []
         ret.append("allauth.account.stages.LoginByCodeStage")
         ret.append("allauth.account.stages.PhoneVerificationStage")
         ret.append("allauth.account.stages.EmailVerificationStage")
-        if allauth_app_settings.MFA_ENABLED:
+        ret.append("allauth.account.stages.RoleSelectionStage")
+        ret.append("allauth.account.stages.SetPasswordStage")
+        enabled, _ = is_mfa_enabled(user, request)
+        if enabled:
             from allauth.mfa import app_settings as mfa_settings
 
             ret.append("allauth.mfa.stages.AuthenticateStage")
@@ -842,17 +881,27 @@ class DefaultAccountAdapter(BaseAdapter):
             ctx.update(context)
         self.send_mail(template_prefix, email, ctx)
 
-    def generate_login_code(self) -> str:
+    def generate_login_code(self, email=None, phone=None) -> str:
         """
         Generates a new login code.
         """
-        return generate_user_code()
+        from zango.apps.appauth.models import generate_otp
+        if email:
+            return generate_otp(otp_type="login_code", email=email)
+        if phone:
+            return generate_otp(otp_type="login_code", phone=phone)
 
-    def generate_password_reset_code(self) -> str:
+    def generate_password_reset_code(self, email=None, phone=None) -> str:
         """
         Generates a new password reset code.
         """
-        return generate_user_code(length=8)
+        from zango.apps.appauth.models import generate_otp
+
+        if email:
+            return generate_otp(otp_type="reset_password", email=email)
+        if phone:
+            return generate_otp(otp_type="reset_password", phone=phone)
+        raise ValueError("Email or phone is required")
 
     def generate_email_verification_code(self) -> str:
         """
@@ -905,11 +954,63 @@ class DefaultAccountAdapter(BaseAdapter):
     def send_account_already_exists_sms(self, phone: str) -> None:
         pass
 
-    def send_verification_code_sms(self, user, phone: str, code: str, **kwargs):
+    def send_sms(self, phone: str, code: str, flow: str, request, config_key=None, extra_data=None, hook=None, content=None, **kwargs):
         """
-        Sends a verification code.
+        Send SMS with OTP code based on the specified flow.
+
+        Args:
+            phone: Recipient phone number
+            code: OTP code to send
+            flow: SMS flow type ('login_code' or 'reset_password')
+            request: HTTP request object
+
+        Raises:
+            ValueError: If flow is invalid or policies don't allow the operation
         """
-        raise NotImplementedError
+        if not phone or not phone.strip():
+            raise ValueError("Phone number is required")
+
+        if not code or not code.strip():
+            raise ValueError("Code is required")
+
+        sms_configs = {
+            "login_code": {
+                "message": content or "Your login code is {code}",
+                "subject": "Login Code",
+                "otp_type": "login_code"
+            },
+            "reset_password": {
+                "message": content or "Your password reset code is {code}",
+                "subject": "Reset Password",
+                "otp_type": "reset_password"
+            }
+        }
+
+        # Validate flow type
+        if flow not in sms_configs:
+            valid_flows = list(sms_configs.keys())
+            raise ValueError(f"Invalid flow '{flow}'. Valid flows are: {valid_flows}")
+
+        # Flow-specific validation
+        if flow == "login_code":
+            self._validate_login_policy(request, "sms")
+        elif flow == "reset_password":
+            self._validate_reset_policy(request, "sms")
+
+        # Get configuration and send SMS
+        config = sms_configs[flow]
+        send_otp.delay(
+            method="sms",
+            otp_type=config["otp_type"],
+            tenant_id=request.tenant.id,
+            message=config["message"],
+            subject=config["subject"],
+            phone=phone,
+            code=code,
+            hook=hook,
+            config_key=config_key,
+            extra_data=extra_data
+        )
 
     @property
     def _has_phone_impl(self) -> bool:
@@ -955,7 +1056,12 @@ class DefaultAccountAdapter(BaseAdapter):
         Looks up a user given the specified phone number. Returns ``None`` if no user
         was found.
         """
-        raise NotImplementedError
+        from zango.apps.appauth.models import AppUserModel
+
+        try:
+            return AppUserModel.objects.get(mobile=phone)
+        except AppUserModel.DoesNotExist:
+            return None
 
 
 def get_adapter(request=None) -> DefaultAccountAdapter:

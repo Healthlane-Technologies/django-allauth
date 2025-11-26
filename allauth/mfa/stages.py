@@ -16,12 +16,12 @@ class AuthenticateStage(LoginStage):
         response, cont = None, True
         if self._should_handle(self.request):
             self.state["authentication_required"] = True
-            response = headed_redirect_response("mfa_authenticate")
+            response = headed_redirect_response("mfa-authenticate-view")
         return response, cont
 
     def _should_handle(self, request) -> bool:
         if not is_mfa_enabled(
-            self.login.user, [Authenticator.Type.TOTP, Authenticator.Type.WEBAUTHN]
+            self.login.user, request
         ):
             return False
         if did_use_passwordless_login(request):
