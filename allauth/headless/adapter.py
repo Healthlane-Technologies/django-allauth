@@ -74,7 +74,8 @@ class DefaultHeadlessAdapter(BaseAdapter):
         if account_settings.USER_MODEL_USERNAME_FIELD:
             kwargs["username"] = user_username(user)
         if user.pk:
-            email = EmailAddress.objects.get_primary_email(user)
+            email = None
+            # email = EmailAddress.objects.get_primary_email(user)
         else:
             email = None
         kwargs.update(

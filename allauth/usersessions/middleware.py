@@ -8,12 +8,12 @@ class UserSessionsMiddleware:
 
     def __call__(self, request):
         if (
-            app_settings.TRACK_ACTIVITY
-            and hasattr(request, "session")
+            hasattr(request, "session")
             and request.session.session_key
             and hasattr(request, "user")
             and request.user.is_authenticated
         ):
-            UserSession.objects.create_from_request(request)
+            if request.tenant.tenant_type != "shared":
+                UserSession.objects.create_from_request(request)
         response = self.get_response(request)
         return response

@@ -1,6 +1,7 @@
 from allauth.headless.base.response import APIResponse
 from allauth.usersessions import app_settings
-
+from django.db import connection
+from zango.core.utils import get_datetime_str_in_tenant_timezone
 
 class SessionsResponse(APIResponse):
     def __init__(self, request, sessions):
@@ -10,12 +11,12 @@ class SessionsResponse(APIResponse):
         data = {
             "user_agent": session.user_agent,
             "ip": session.ip,
-            "created_at": session.created_at.timestamp(),
+            "created_at": get_datetime_str_in_tenant_timezone(session.created_at, connection.tenant),
             "is_current": session.is_current(),
             "id": session.pk,
         }
-        if app_settings.TRACK_ACTIVITY:
-            data["last_seen_at"] = session.last_seen_at.timestamp()
+        # if app_settings.TRACK_ACTIVITY:
+        data["last_seen_at"] = get_datetime_str_in_tenant_timezone(session.last_seen_at, connection.tenant)
         return data
 
 

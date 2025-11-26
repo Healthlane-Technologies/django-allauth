@@ -31,20 +31,26 @@ def delete_and_cleanup(request, authenticator) -> None:
 
 def post_authentication(
     request,
-    authenticator: Authenticator,
+    authenticator: Authenticator = None,
     reauthenticated: bool = False,
     passwordless: bool = False,
+    user=None,
 ) -> None:
-    authenticator.record_usage()
-    extra_data = {
-        "id": authenticator.pk,
-        "type": authenticator.type,
-    }
+    extra_data = {}
+    if authenticator:
+        authenticator.record_usage()
+        extra_data = {
+            "id": authenticator.pk,
+            "type": authenticator.type,
+        }
     if reauthenticated:
         extra_data["reauthenticated"] = True
     if passwordless:
         extra_data["passwordless"] = True
-    record_authentication(request, authenticator.user, "mfa", **extra_data)
+    if authenticator:
+        record_authentication(request, authenticator.user, "mfa", **extra_data)
+    else:
+        record_authentication(request, user, "mfa", **extra_data)
 
 
 def check_rate_limit(user) -> Callable[[], None]:

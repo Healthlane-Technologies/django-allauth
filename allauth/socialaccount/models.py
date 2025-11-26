@@ -22,6 +22,7 @@ from allauth.socialaccount.adapter import get_adapter
 from allauth.socialaccount.internal import statekit
 from allauth.utils import get_request_param
 
+from zango.apps.appauth.models import AppUserModel
 
 if not allauth_settings.SOCIALACCOUNT_ENABLED:
     raise ImproperlyConfigured(
@@ -91,7 +92,7 @@ class SocialApp(models.Model):
 
 
 class SocialAccount(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(AppUserModel, on_delete=models.CASCADE)
     # Given a `SocialApp` from which this account originates, this field equals
     # the app's `app.provider_id` if available, `app.provider` otherwise.
     provider = models.CharField(

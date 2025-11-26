@@ -7,6 +7,8 @@ from allauth.account import app_settings, signals
 from allauth.account.adapter import get_adapter
 from allauth.account.internal.flows.logout import logout
 
+from zango.core.utils import get_auth_priority
+
 
 def change_password(user: AbstractBaseUser, password: str) -> None:
     get_adapter().set_password(user, password)
@@ -46,10 +48,7 @@ def logout_on_password_change(request: HttpRequest, user: AbstractBaseUser) -> b
     # Since it is the default behavior of Django to invalidate all sessions on
     # password change, this function actually has to preserve the session when
     # logout isn't desired.
-    logged_out = True
-    if not app_settings.LOGOUT_ON_PASSWORD_CHANGE:
-        update_session_auth_hash(request, user)  # type: ignore[arg-type]
-        logged_out = False
-    else:
-        logout(request)
+    logged_out = False
+    update_session_auth_hash(request, user)  # type: ignore[arg-type]
+    logged_out = False
     return logged_out

@@ -55,7 +55,7 @@ _user_display_callable = None
 def default_user_display(user) -> str:
     ret = ""
     if app_settings.USER_MODEL_USERNAME_FIELD:
-        ret = getattr(user, app_settings.USER_MODEL_USERNAME_FIELD)
+        ret = getattr(user, "email")
     return ret or force_str(user) or user._meta.verbose_name
 
 
@@ -70,7 +70,7 @@ def user_display(user) -> str:
 def user_username(user, *args, commit=False):
     if args and not app_settings.PRESERVE_USERNAME_CASING and args[0]:
         args = [args[0].lower()]
-    return user_field(user, app_settings.USER_MODEL_USERNAME_FIELD, *args)
+    return user_field(user, "email", *args)
 
 
 def user_email(user, *args, commit=False):
