@@ -1,0 +1,14 @@
+Index: b/allauth/headless/tokens/base.py
+===================================================================
+--- a/allauth/headless/tokens/base.py
++++ b/allauth/headless/tokens/base.py
+@@ -42,7 +42,8 @@
+         will have to implement a token strategy that returns an access token
+         here.
+         """
+-        return None
++        _, token = request.user.generate_auth_token(role=request.session["role_id"])
++        return token
+ 
+     @abc.abstractmethod
+     def create_session_token(self, request: HttpRequest) -> str:

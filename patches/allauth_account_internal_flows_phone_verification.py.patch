@@ -1,0 +1,14 @@
+Index: b/allauth/account/internal/flows/phone_verification.py
+===================================================================
+--- a/allauth/account/internal/flows/phone_verification.py
++++ b/allauth/account/internal/flows/phone_verification.py
+@@ -21,7 +21,8 @@
+ 
+ 
+ def verify_phone_indirectly(request: HttpRequest, user, phone: str) -> None:
+-    get_adapter().set_phone_verified(user, phone)
++    pass
++    # get_adapter().set_phone_verified(user, phone)
+ 
+ 
+ class PhoneVerificationProcess(AbstractCodeVerificationProcess):

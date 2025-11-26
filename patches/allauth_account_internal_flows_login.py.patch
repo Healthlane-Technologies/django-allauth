@@ -1,0 +1,13 @@
+Index: b/allauth/account/internal/flows/login.py
+===================================================================
+--- a/allauth/account/internal/flows/login.py
++++ b/allauth/account/internal/flows/login.py
+@@ -76,7 +76,7 @@
+ ) -> HttpResponse:
+     extra_data = {
+         field: credentials.get(field)
+-        for field in ["email", "username"]
++        for field in ["email", "username", "phone"]
+         if credentials.get(field)
+     }
+     record_authentication(request, login.user, method="password", **extra_data)

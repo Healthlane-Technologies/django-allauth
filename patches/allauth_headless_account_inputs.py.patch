@@ -1,0 +1,86 @@
+Index: b/allauth/headless/account/inputs.py
+===================================================================
+--- a/allauth/headless/account/inputs.py
++++ b/allauth/headless/account/inputs.py
+@@ -23,6 +23,8 @@
+ from allauth.headless.adapter import get_adapter
+ from allauth.headless.internal.restkit import inputs
+ 
++from zango.core.utils import get_auth_priority
++from zango.api.app_auth.profile.v1.utils import PasswordValidationMixin
+ 
+ class SignupInput(BaseSignupForm, inputs.Input):
+     password = inputs.CharField()
+@@ -41,7 +43,6 @@
+ 
+ 
+ class LoginInput(inputs.Input):
+-    username = inputs.CharField(required=False)
+     email = inputs.EmailField(required=False)
+     # NOTE: Always require E164, no need to use adapter.phone_form_field
+     phone = PhoneField(required=False)
+@@ -49,18 +50,20 @@
+ 
+     def __init__(self, *args, **kwargs):
+         super().__init__(*args, **kwargs)
+-        for field in ["username", "email", "phone"]:
+-            if field not in account_settings.LOGIN_METHODS:
++        policy = get_auth_priority(policy="login_methods")
++        password_policy = policy.get("password", {})
++        for field in ["email", "phone"]:
++            if field not in password_policy.get("allowed_usernames", []):
+                 del self.fields[field]
+-        if len(account_settings.LOGIN_METHODS) == 1:
+-            self.fields[next(iter(account_settings.LOGIN_METHODS))].required = True
++        if len(password_policy.get("allowed_usernames")) == 1:
++            self.fields[next(iter(password_policy.get("allowed_usernames")))].required = True
+ 
+     def clean(self):
+         cleaned_data = super().clean()
+         if self.errors:
+             return cleaned_data
+         credentials = {}
+-        for login_method in account_settings.LOGIN_METHODS:
++        for login_method in get_auth_priority(policy="login_methods").get("password", {}).get("allowed_usernames"):
+             value = cleaned_data.get(login_method)
+             if value is not None and login_method in self.data.keys():
+                 credentials[login_method] = value
+@@ -78,7 +81,7 @@
+                         "too_many_login_attempts"
+                     )
+             else:
+-                error_code = "%s_password_mismatch" % auth_method.value
++                error_code = "%s_password_mismatch" % auth_method
+                 self.add_error(
+                     "password", get_account_adapter().validation_error(error_code)
+                 )
+@@ -129,7 +132,9 @@
+         super().__init__(*args, **kwargs)
+ 
+     def clean_key(self):
+-        if account_settings.PASSWORD_RESET_BY_CODE_ENABLED:
++        password_policy = get_auth_priority(policy="password_policy")
++        password_reset_policy = password_policy.get("reset", {})
++        if password_reset_policy.get("by_code", False):
+             return self._clean_key_code()
+         else:
+             return self._clean_key_link()
+@@ -150,7 +155,7 @@
+         return key
+ 
+ 
+-class ResetPasswordInput(ResetPasswordKeyInput):
++class ResetPasswordInput(ResetPasswordKeyInput, PasswordValidationMixin):
+     password = inputs.CharField()
+ 
+     def clean(self):
+@@ -158,6 +163,9 @@
+         password = self.cleaned_data.get("password")
+         if self.user and password is not None:
+             try:
++                res = self.run_all_validations(self.user, password)
++                if not res.get("validation"):
++                    raise ValidationError(res.get("msg"))
+                 get_account_adapter().clean_password(password, user=self.user)
+             except ValidationError as e:
+                 self.add_error("password", e)
