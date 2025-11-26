@@ -1,0 +1,29 @@
+Index: b/allauth/core/internal/httpkit.py
+===================================================================
+--- a/allauth/core/internal/httpkit.py
++++ b/allauth/core/internal/httpkit.py
+@@ -105,16 +105,16 @@
+ 
+ 
+ def default_get_frontend_url(request, urlname, **kwargs):
+-    from allauth import app_settings as allauth_settings
++    from zango.core.utils import get_current_request_url
++    # from allauth import app_settings as allauth_settings
+ 
+-    if allauth_settings.HEADLESS_ENABLED:
+-        from allauth.headless import app_settings as headless_settings
++    # if allauth_settings.HEADLESS_ENABLED:
++    #     from allauth.headless import app_settings as headless_settings
+ 
+-        url = headless_settings.FRONTEND_URLS.get(urlname)
+-        if allauth_settings.HEADLESS_ONLY and not url:
+-            raise ImproperlyConfigured(f"settings.HEADLESS_FRONTEND_URLS['{urlname}']")
+-        if url:
+-            return render_url(request, url, **kwargs)
++    #     url = headless_settings.FRONTEND_URLS.get(urlname)
++    #     if allauth_settings.HEADLESS_ONLY and not url:
++    #         raise ImproperlyConfigured(f"settings.HEADLESS_FRONTEND_URLS['{urlname}']")
++    return render_url(request, f"{get_current_request_url(request=request)}/{urlname}", **kwargs)
+     return None
+ 
+ 

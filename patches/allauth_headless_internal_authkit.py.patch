@@ -1,0 +1,13 @@
+Index: b/allauth/headless/internal/authkit.py
+===================================================================
+--- a/allauth/headless/internal/authkit.py
++++ b/allauth/headless/internal/authkit.py
+@@ -74,6 +74,8 @@
+     """
+     Determines if a new access token needs to be exposed.
+     """
++    if not getattr(request.allauth, "headless", None):
++        return None
+     if request.allauth.headless.client != Client.APP:
+         return None
+     if not request.user.is_authenticated:

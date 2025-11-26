@@ -1,0 +1,18 @@
+Index: b/allauth/account/views.py
+===================================================================
+--- a/allauth/account/views.py
++++ b/allauth/account/views.py
+@@ -90,8 +90,11 @@
+     @sensitive_post_parameters_m
+     @method_decorator(never_cache)
+     def dispatch(self, request, *args, **kwargs):
+-        if allauth_app_settings.SOCIALACCOUNT_ONLY and request.method != "GET":
+-            raise PermissionDenied()
++        from zango.core.utils import get_auth_priority
++
++        policy = get_auth_priority(policy="login_methods")
++        if not policy.get("password", {}).get("enabled", False):
++            raise PermissionDenied("password based login not enabled")
+         return super().dispatch(request, *args, **kwargs)
+ 
+     def get_form_kwargs(self):

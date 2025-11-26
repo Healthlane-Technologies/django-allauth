@@ -1,0 +1,30 @@
+Index: b/allauth/idp/oidc/models.py
+===================================================================
+--- a/allauth/idp/oidc/models.py
++++ b/allauth/idp/oidc/models.py
+@@ -9,6 +9,7 @@
+ 
+ from allauth.idp.oidc.adapter import get_adapter
+ 
++from zango.apps.appauth.models import AppUserModel
+ 
+ def default_client_id() -> str:
+     adapter = get_adapter()
+@@ -95,7 +96,7 @@
+         ),
+     )
+     owner = models.ForeignKey(
+-        settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE
++        AppUserModel, blank=True, null=True, on_delete=models.CASCADE
+     )
+     skip_consent = models.BooleanField(
+         default=False, help_text="Flag to allow skip the consent screen for this client"
+@@ -179,7 +180,7 @@
+     hash = models.CharField(max_length=255)
+     client = models.ForeignKey(Client, on_delete=models.CASCADE, blank=True, null=True)
+     user = models.ForeignKey(
+-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, blank=True, null=True
++        AppUserModel, on_delete=models.CASCADE, blank=True, null=True
+     )
+     data = models.JSONField(blank=True, null=True, default=None)
+     created_at = models.DateTimeField(default=timezone.now)

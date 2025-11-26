@@ -1,0 +1,144 @@
+Index: b/allauth/account/forms.py
+===================================================================
+--- a/allauth/account/forms.py
++++ b/allauth/account/forms.py
+@@ -35,6 +35,9 @@
+     user_username,
+ )
+ 
++from zango.core.utils import get_auth_priority
++from zango.apps.appauth.models import AppUserModel
++
+ 
+ class EmailAwarePasswordResetTokenGenerator(PasswordResetTokenGenerator):
+     def _make_hash_value(self, user, timestamp):
+@@ -42,6 +45,7 @@
+         sync_user_email_address(user)
+         email = user_email(user)
+         emails = set([email] if email else [])
++        user = AppUserModel.objects.get(id=user.id)
+         emails.update(
+             EmailAddress.objects.filter(user=user).values_list("email", flat=True)
+         )
+@@ -619,29 +623,61 @@
+ 
+ 
+ class ResetPasswordForm(forms.Form):
+-    email = EmailField(required=True)
++    email = EmailField(required=False)
++    phone = forms.CharField(required=False)
+ 
+     def clean_email(self):
++        password_policy = get_auth_priority(policy="password_policy")
++        password_reset_policy = password_policy.get("reset", {})
+         email = self.cleaned_data["email"].lower()
++        if not email:
++            return email
++        if "email" not in password_reset_policy.get("allowed_methods", []):
++            raise get_adapter().validation_error("email_not_allowed")
+         email = get_adapter().clean_email(email)
+-        self.users = filter_users_by_email(email, is_active=True, prefer_verified=True)
+-        if not self.users and not app_settings.PREVENT_ENUMERATION:
++        # self.users = filter_users_by_email(email, is_active=True, prefer_verified=True)
++        # if not self.users and not app_settings.PREVENT_ENUMERATION:
++        #     raise get_adapter().validation_error("unknown_email")
++        try:
++            from zango.apps.appauth.models import AppUserModel
++            self.user = AppUserModel.objects.get(email=email)
++            return self.cleaned_data["email"]
++        except AppUserModel.DoesNotExist:
+             raise get_adapter().validation_error("unknown_email")
+-        return self.cleaned_data["email"]
++
++    def clean_phone(self):
++        phone = self.cleaned_data["phone"]
++        if not phone:
++            return
++        password_policy = get_auth_priority(policy="password_policy")
++        password_reset_policy = password_policy.get("reset", {})
++        if phone and "sms" not in password_reset_policy.get("allowed_methods", []):
++            raise get_adapter().validation_error("sms_not_allowed")
++        try:
++            from zango.apps.appauth.models import AppUserModel
++            self.user = AppUserModel.objects.get(mobile=phone)
++            return self.cleaned_data["phone"]
++        except AppUserModel.DoesNotExist:
++            raise get_adapter().validation_error("unknown_phone")
+ 
+     def save(self, request, **kwargs) -> str:
+-        email = self.cleaned_data["email"]
+-        if app_settings.PASSWORD_RESET_BY_CODE_ENABLED:
+-            flows.password_reset_by_code.PasswordResetVerificationProcess.initiate(
+-                request=request,
+-                user=(self.users[0] if self.users else None),
+-                email=email,
+-            )
+-        else:
+-            token_generator = kwargs.get("token_generator", default_token_generator)
+-            flows.password_reset.request_password_reset(
+-                request, email, self.users, token_generator
+-            )
++        email = self.cleaned_data.get("email", "")
++        phone = self.cleaned_data.get("phone")
++        password_policy = get_auth_priority(policy='password_policy', request=request)
++        reset_policy = password_policy.get('reset', {})
++        if reset_policy.get('enabled', False):
++            if reset_policy.get("by_code", False):
++                flows.password_reset_by_code.PasswordResetVerificationProcess.initiate(
++                    request=request,
++                    user=(self.user if self.user else None),
++                    email=email,
++                    phone=phone
++                )
++            else:
++                token_generator = kwargs.get("token_generator", default_token_generator)
++                flows.password_reset.request_password_reset(
++                    request, email, [self.user], token_generator
++                )
+         return email
+ 
+ 
+@@ -667,10 +703,11 @@
+     token_generator = default_token_generator
+ 
+     def _get_user(self, uidb36):
++        from zango.apps.appauth.models import AppUserModel
+         User = get_user_model()
+         try:
+             pk = url_str_to_user_pk(uidb36)
+-            return User.objects.get(pk=pk)
++            return AppUserModel.objects.get(pk=pk)
+         except (ValueError, User.DoesNotExist):
+             return None
+ 
+@@ -707,12 +744,17 @@
+ 
+ 
+ class RequestLoginCodeForm(forms.Form):
+-    email = EmailField()
++    email = EmailField(required=False)
++    phone = forms.CharField(required=False)
+ 
+     def __init__(self, *args, **kwargs):
+         super().__init__(*args, **kwargs)
+-        self._has_email = LoginMethod.EMAIL in app_settings.LOGIN_METHODS
+-        self._has_phone = LoginMethod.PHONE in app_settings.LOGIN_METHODS
++        from zango.core.utils import get_auth_priority
++
++        policy = get_auth_priority(policy="login_methods")
++        otp_methods = policy.get("otp",{}).get("allowed_methods")
++        self._has_email = "email" in otp_methods
++        self._has_phone = "sms" in otp_methods
+         if self._has_phone:
+             adapter = get_adapter()
+             self.fields["phone"] = adapter.phone_form_field(
+@@ -750,7 +792,8 @@
+         adapter = get_adapter()
+         email = self.cleaned_data["email"]
+         if email:
+-            users = filter_users_by_email(email, is_active=True, prefer_verified=True)
++            from zango.apps.appauth.models import AppUserModel
++            users = AppUserModel.objects.filter(email__iexact=email)
+             if not app_settings.PREVENT_ENUMERATION:
+                 if not users:
+                     raise adapter.validation_error("unknown_email")

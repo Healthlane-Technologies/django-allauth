@@ -1,0 +1,29 @@
+Index: b/allauth/mfa/base/views.py
+===================================================================
+--- a/allauth/mfa/base/views.py
++++ b/allauth/mfa/base/views.py
+@@ -32,10 +32,11 @@
+ 
+     def dispatch(self, request, *args, **kwargs):
+         self.stage = request._login_stage
+-        if not is_mfa_enabled(
++        enabled, _  = is_mfa_enabled(
+             self.stage.login.user,
+-            [Authenticator.Type.TOTP, Authenticator.Type.WEBAUTHN],
+-        ):
++            request
++        )
++        if not enabled:
+             return HttpResponseRedirect(reverse("account_login"))
+         self.form = self._build_forms()
+         return super().dispatch(request, *args, **kwargs)
+@@ -149,7 +150,8 @@
+                 authenticators[auth.type] = auth.wrap()
+         ret["authenticators"] = authenticators
+         ret["MFA_SUPPORTED_TYPES"] = app_settings.SUPPORTED_TYPES
+-        ret["is_mfa_enabled"] = is_mfa_enabled(self.request.user)
++        enabled, _ = is_mfa_enabled(self.request.user)
++        ret["is_mfa_enabled"] = enabled
+         return ret
+ 
+ 

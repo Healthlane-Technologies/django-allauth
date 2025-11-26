@@ -1,0 +1,54 @@
+Index: b/allauth/account/internal/flows/login_by_code.py
+===================================================================
+--- a/allauth/account/internal/flows/login_by_code.py
++++ b/allauth/account/internal/flows/login_by_code.py
+@@ -15,6 +15,7 @@
+ from allauth.account.models import Login
+ from allauth.account.stages import LoginByCodeStage, LoginStageController
+ 
++from zango.core.utils import get_auth_priority
+ 
+ LOGIN_CODE_STATE_KEY = "login_code"
+ 
+@@ -73,8 +74,13 @@
+     def send_by_phone(self, phone):
+         adapter = get_adapter()
+         if self.user:
+-            code = adapter.generate_phone_verification_code()
+-            adapter.send_verification_code_sms(user=self.user, phone=phone, code=code)
++            code = adapter.generate_login_code(phone=phone)
++            login_policy = get_auth_priority(request=self.request, policy="login_methods", user=self.user)
++            sms_config_key = login_policy.get("otp", {}).get("sms_config_key", None)
++            sms_extra_data = login_policy.get("otp", {}).get("sms_extra_data", None)
++            sms_hook = login_policy.get("otp", {}).get("sms_hook", None)
++            sms_content = login_policy.get("otp", {}).get("sms_content", None)
++            adapter.send_sms(user=self.user, phone=phone, request=self.request, code=code, flow="login_code", config_key=sms_config_key, extra_data=sms_extra_data, hook=sms_hook, content=sms_content)
+             self.state["code"] = code
+         else:
+             adapter.send_unknown_account_sms(phone)
+@@ -83,14 +89,22 @@
+     def send_by_email(self, email):
+         adapter = get_adapter()
+         if not self.user:
+-            send_unknown_account_mail(self.request, email)
++            raise ValueError("User with email {} does not exist".format(email))
++            # send_unknown_account_mail(self.request, email)
+         else:
+-            code = adapter.generate_login_code()
++            code = adapter.generate_login_code(email=email)
+             context = {
+                 "request": self.request,
+                 "code": code,
+             }
+-            adapter.send_mail("account/email/login_code", email, context)
++            login_policy = get_auth_priority(request=self.request, policy="login_methods", user=self.user)
++            email_hook = login_policy.get("otp", {}).get("email_hook", None)
++            email_content = login_policy.get("otp", {}).get("email_content", None)
++            if email_content:
++                email_content = email_content.format(code=code)
++            email_config_key = login_policy.get("otp", {}).get("email_config_key", None)
++            email_subject = login_policy.get("otp", {}).get("email_subject", None)
++            adapter.send_mail("account/email/login_code", email, context, email_hook=email_hook, content=email_content, config_key=email_config_key, subject=email_subject)
+             self.state["code"] = code
+         self.add_sent_message({"email": email, "recipient": email})
+ 

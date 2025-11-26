@@ -1,0 +1,5 @@
+QUILT_PATCHES=patches
+QUILT_PATCH_OPTS=""
+QUILT_DIFF_ARGS="-p ab --no-timestamps"
+QUILT_REFRESH_ARGS="-p ab --no-timestamps"
+QUILT_SERIES=series
