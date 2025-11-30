@@ -22,8 +22,8 @@ class BaseAuthenticationResponse(APIResponse):
             adapter = get_adapter()
             data["user"] = adapter.serialize_user(user)
             data["methods"] = get_authentication_records(request)
-            redirect_url = get_auth_priority(config_key="redirect_url", request=request, user=user)
-            data["redirect_url"] = redirect_url
+            # redirect_url = get_auth_priority(config_key="redirect_url", request=request, user=user)
+            data["redirect_url"] = "/app"
             status = status or HTTPStatus.OK
         else:
             status = status or HTTPStatus.UNAUTHORIZED
@@ -110,7 +110,6 @@ class BaseAuthenticationResponse(APIResponse):
             flows.append(pending_flow)
 
     def _enrich_mfa_flow(self, stage, flow: dict, request) -> None:
-        print("user is ", stage.login.user)
         flow["metadata"] = {}
         from allauth.mfa.adapter import get_adapter as get_mfa_adapter
 
@@ -123,6 +122,8 @@ class BaseAuthenticationResponse(APIResponse):
                     flow["metadata"]["type"] = "sms"
                 else:
                     flow["metadata"]["type"] = "email"
+            elif request.session.get("saml", False):
+                flow["metadata"]["type"] = "sms"
 
     def _enrich_role_selection_flow(self, stage, flow: dict) -> None:
         flow["metadata"] = {}

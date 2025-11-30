@@ -78,7 +78,7 @@ def get_reset_password_from_key_url(request: HttpRequest, key: str) -> str:
     Method intented to be overriden in case the password reset email
     needs to point to your frontend/SPA.
     """
-    url = get_frontend_url(request, "account/password/reset/{key}", key=key)
+    url = get_frontend_url(request, "app/login/reset-password/{key}", key=key)
     if not url:
         # We intentionally accept an opaque `key` on the interface here, and not
         # implementation details such as a separate `uidb36` and `key. Ideally,
