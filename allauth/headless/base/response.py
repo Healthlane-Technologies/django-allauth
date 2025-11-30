@@ -22,8 +22,8 @@ class BaseAuthenticationResponse(APIResponse):
             adapter = get_adapter()
             data["user"] = adapter.serialize_user(user)
             data["methods"] = get_authentication_records(request)
-            redirect_url = get_auth_priority(config_key="redirect_url", request=request, user=user)
-            data["redirect_url"] = redirect_url
+            # redirect_url = get_auth_priority(config_key="redirect_url", request=request, user=user)
+            data["redirect_url"] = "/app"
             status = status or HTTPStatus.OK
         else:
             status = status or HTTPStatus.UNAUTHORIZED
