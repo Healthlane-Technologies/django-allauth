@@ -640,7 +640,6 @@ class DefaultAccountAdapter(BaseAdapter):
         email_content = password_reset_policy.get("email_content", None)
         if email_content:
             email_content = email_content.format(reset_url=context["password_reset_url"])
-        print("email content", email_content)
         email_config_key = password_reset_policy.get("email_config_key", None)
         email_subject = password_reset_policy.get("email_subject", None)
         return self.send_mail("account/email/password_reset_key", email, context, email_hook=email_hook, content=email_content, config_key=email_config_key, subject=email_subject)
