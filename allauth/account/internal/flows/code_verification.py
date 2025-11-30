@@ -6,6 +6,8 @@ from django.contrib.auth import get_user_model
 
 from allauth.account.internal.userkit import str_to_user_id, user_id_to_str
 
+from zango.apps.appauth.models import AppUserModel
+
 
 class AbstractCodeVerificationProcess(abc.ABC):
     def __init__(
@@ -28,7 +30,7 @@ class AbstractCodeVerificationProcess(abc.ABC):
         if not user_id:
             return None
         user_id = str_to_user_id(user_id)
-        self._user = get_user_model().objects.filter(pk=user_id).first()
+        self._user = AppUserModel.objects.filter(pk=user_id).first()
         return self._user
 
     @property
