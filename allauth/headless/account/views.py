@@ -82,7 +82,7 @@ class ConfirmLoginCodeView(APIView):
         auth_status = authkit.AuthenticationStatus(request)
         self.stage = auth_status.get_pending_stage()
         if not self.stage:
-            return ConflictResponse(request)
+            return ConflictResponse(request, errors=[{"message": "Maximum attempts exceeded or session expired. Please try again later."}])
         self.process = flows.login_by_code.LoginCodeVerificationProcess.resume(
             self.stage
         )

@@ -172,8 +172,11 @@ class ForbiddenResponse(APIResponse):
 
 
 class ConflictResponse(APIResponse):
-    def __init__(self, request):
-        super().__init__(request, status=HTTPStatus.CONFLICT)
+    def __init__(self, request, errors=None):
+        if errors is None:
+            super().__init__(request, status=HTTPStatus.CONFLICT)
+        else:
+            super().__init__(request, status=HTTPStatus.CONFLICT, errors=errors)
 
 
 def get_config_data(request):
@@ -222,4 +225,4 @@ class ConfigResponse(APIResponse):
 
 class RateLimitResponse(APIResponse):
     def __init__(self, request):
-        super().__init__(request, status=HTTPStatus.TOO_MANY_REQUESTS)
+        super().__init__(request, status=HTTPStatus.TOO_MANY_REQUESTS, errors = [{"message": "Rate limit exceeded"}])
