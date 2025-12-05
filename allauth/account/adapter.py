@@ -886,8 +886,9 @@ class DefaultAccountAdapter(BaseAdapter):
         Generates a new login code.
         """
         from zango.apps.appauth.models import generate_otp
+        login_methods = get_auth_priority(policy="login_methods", request=self.request)
         if email:
-            return generate_otp(otp_type="login_code", email=email)
+            return generate_otp(otp_type="login_code", email=email, expiry=login_methods.get("otp", {}).get("otp_expiry", 300))
         if phone:
             return generate_otp(otp_type="login_code", phone=phone)
 
