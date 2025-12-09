@@ -1,13 +1,12 @@
 name: Publish zango-allauth to PyPI
 
 on:
-  push:
-  # pull_request:
-    # types: [closed]
+  pull_request:
+    types: [closed]
     paths:
       - 'allauth/__init__.py'
     branches:
-      - release_fork
+      - zango_allauth
 
 jobs:
   build-package:
