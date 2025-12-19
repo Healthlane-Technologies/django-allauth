@@ -5,7 +5,7 @@ from allauth.mfa.internal.flows import trust
 from allauth.mfa.models import Authenticator
 from allauth.mfa.utils import is_mfa_enabled
 from allauth.mfa.webauthn.internal.flows import did_use_passwordless_login
-
+from allauth.account.authentication import get_authentication_records
 
 class AuthenticateStage(LoginStage):
     # NOTE: Duplicated in `allauth.headless.constants.Flow.MFA_AUTHENTICATE`.
@@ -24,6 +24,10 @@ class AuthenticateStage(LoginStage):
             self.login.user, request
         ):
             return False
+        records = get_authentication_records(request)
+        if records:
+            if records[0].get('method') == "code":
+                return False
         if did_use_passwordless_login(request):
             return False
         if trust.is_trusted_browser(request, self.login.user):
