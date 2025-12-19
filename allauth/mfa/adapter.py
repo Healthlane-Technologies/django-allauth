@@ -41,6 +41,7 @@ class DefaultMFAAdapter(BaseAdapter):
         "unverified_email": _(
             "You cannot activate two-factor authentication until you have verified your email address."
         ),
+        "code_expired_or_used": _("The code has expired or has already been used."),
     }
     "The error messages that can occur as part of MFA form handling."
 
