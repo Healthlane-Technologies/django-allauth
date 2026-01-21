@@ -229,7 +229,7 @@ class DefaultAccountAdapter(BaseAdapter):
         """Validate login code policy permissions for email or SMS."""
         policy = get_auth_priority(policy="login_methods", request=request)
         otp_methods = policy.get("otp", {}).get("allowed_methods", [])
-        
+
         if method not in otp_methods:
             raise ValueError(f"{method.upper()} OTP is not enabled")
 
@@ -238,7 +238,7 @@ class DefaultAccountAdapter(BaseAdapter):
         """Validate reset password policy permissions for email or SMS."""
         password_policy = get_auth_priority(policy="password_policy", request=request)
         reset_policy = password_policy.get("reset", {})
-            
+
         if method not in reset_policy.get("allowed_methods", []):
             raise ValueError(f"Reset password by {method} is not enabled")
 
@@ -583,6 +583,10 @@ class DefaultAccountAdapter(BaseAdapter):
         """
         Sets the password for the user.
         """
+        from zango.apps.appauth.models import AppUserModel
+        if not isinstance(user, AppUserModel):
+                    user = AppUserModel.objects.get(id=user.id)
+
         user.set_password(password)
         user.save()
         obj = OldPasswords.objects.create(user=user)
@@ -886,8 +890,9 @@ class DefaultAccountAdapter(BaseAdapter):
         Generates a new login code.
         """
         from zango.apps.appauth.models import generate_otp
+        login_methods = get_auth_priority(policy="login_methods", request=self.request)
         if email:
-            return generate_otp(otp_type="login_code", email=email)
+            return generate_otp(otp_type="login_code", email=email, expiry=login_methods.get("otp", {}).get("otp_expiry", 300))
         if phone:
             return generate_otp(otp_type="login_code", phone=phone)
 
@@ -957,19 +962,19 @@ class DefaultAccountAdapter(BaseAdapter):
     def send_sms(self, phone: str, code: str, flow: str, request, config_key=None, extra_data=None, hook=None, content=None, **kwargs):
         """
         Send SMS with OTP code based on the specified flow.
-        
+
         Args:
             phone: Recipient phone number
             code: OTP code to send
             flow: SMS flow type ('login_code' or 'reset_password')
             request: HTTP request object
-            
+
         Raises:
             ValueError: If flow is invalid or policies don't allow the operation
         """
         if not phone or not phone.strip():
             raise ValueError("Phone number is required")
-        
+
         if not code or not code.strip():
             raise ValueError("Code is required")
 
@@ -981,22 +986,22 @@ class DefaultAccountAdapter(BaseAdapter):
             },
             "reset_password": {
                 "message": content or "Your password reset code is {code}",
-                "subject": "Reset Password", 
+                "subject": "Reset Password",
                 "otp_type": "reset_password"
             }
         }
-        
+
         # Validate flow type
         if flow not in sms_configs:
             valid_flows = list(sms_configs.keys())
             raise ValueError(f"Invalid flow '{flow}'. Valid flows are: {valid_flows}")
-        
+
         # Flow-specific validation
         if flow == "login_code":
             self._validate_login_policy(request, "sms")
         elif flow == "reset_password":
             self._validate_reset_policy(request, "sms")
-        
+
         # Get configuration and send SMS
         config = sms_configs[flow]
         send_otp.delay(

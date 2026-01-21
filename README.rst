@@ -1,99 +1,74 @@
 
-==========================
-Welcome to django-allauth!
-==========================
+=========================================
+Zango AllAuth - Authentication for Zango
+=========================================
 
-.. image:: https://codeberg.org/allauth/allauth.org/raw/commit/da3b56390e1b18eaec09b05cd89dfa7812212dfc/content/news/2024/04/website-redesign/logo-light.png
-   :target: https://allauth.org
-   :align: right
-   :alt: django-allauth logo
-   :width: 250px
+A multi-tenant aware fork of django-allauth, purpose-built for the **Zango**
+Django framework. This package provides comprehensive authentication and
+authorization capabilities designed to work seamlessly with Zango's
+multi-tenant architecture.
 
+**Zango** is an enterprise-ready Django framework that enables rapid development
+of business applications with built-in multi-tenancy, security, and compliance
+features. Learn more at `https://zango.dev <https://zango.dev>`_
 
-.. |ci| image:: https://img.shields.io/github/actions/workflow/status/pennersr/django-allauth/ci.yml.svg
-   :target: https://github.com/pennersr/django-allauth/actions
-.. |pypi| image:: https://img.shields.io/pypi/v/django-allauth
-   :target: https://pypi.python.org/pypi/django-allauth
-.. |cov| image:: https://img.shields.io/coverallsCoverage/github/pennersr/django-allauth
-   :alt: Coverage Status
-   :target: https://coveralls.io/r/pennersr/django-allauth
-.. |btc| image:: https://img.shields.io/badge/bitcoin-donate-yellow
-   :target: https://blockchain.info/address/1AJXuBMPHkaDCNX2rwAy34bGgs7hmrePEr
-.. |liberapay| image:: https://img.shields.io/liberapay/receives/pennersr
-   :target: https://en.liberapay.com/pennersr
-.. |pystyle| image:: https://img.shields.io/badge/code_style-pep8-green
-   :target: https://www.python.org/dev/peps/pep-0008/
-.. |jsstyle| image:: https://img.shields.io/badge/code_style-standard-brightgreen
-   :target: http://standardjs.com
-.. |editor| image:: https://img.shields.io/badge/editor-emacs-purple
-   :target: https://www.gnu.org/software/emacs/
-.. |i18n| image:: https://img.shields.io/weblate/progress/allauth
-   :target: https://hosted.weblate.org/projects/allauth/django-allauth/
-.. |pypidl| image:: https://img.shields.io/pypi/dm/django-allauth
-   :target: https://pypistats.org/packages/django-allauth
-   :alt: PyPI - Downloads
-.. |djangodemo| image:: https://img.shields.io/badge/%E2%96%B6_demo-Django_project-red
-   :target: https://django.demo.allauth.org/
-   :alt: View Django Demo
-.. |reactdemo| image:: https://img.shields.io/badge/%E2%96%B6_demo-React_SPA-red
-   :target: https://react.demo.allauth.org/
-   :alt: View React SPA Demo
+**Zango AllAuth** extends django-allauth to provide:
 
-|ci| |pypi| |cov| |btc| |liberapay| |pystyle| |jsstyle| |editor| |i18n| |pypidl| |djangodemo| |reactdemo|
+- **Multi-tenant Authentication**: Isolated authentication contexts for each tenant
+- **Role-based Access Control**: Seamless integration with Zango's role and permission system
+- **Social & Enterprise Login**: Support for OAuth, OIDC, SAML 2.0, and more
+- **Account Management**: Comprehensive user registration, verification, and account management
+- **Enterprise Ready**: Built with security and compliance in mind
 
+Resources
+==========
 
-Integrated set of Django applications addressing authentication,
-registration, account management as well as 3rd party (social) account
-authentication.
+**Zango**
+  Home: https://zango.dev
+  Documentation: https://zango.dev/docs
+  GitHub: https://github.com/Healthlane-Technologies/Zango
+  Discord: https://discord.com/invite/WHvVjU23e7
 
-Home page
-  https://allauth.org/
+**Zango AllAuth**
+  Source code: https://github.com/Healthlane-Technologies/django-allauth/tree/zango_allauth
+  Bug Tracker: https://github.com/Healthlane-Technologies/django-allauth/issues
 
-Source code
-  https://codeberg.org/allauth/django-allauth
-
-Issue Tracker
-  https://codeberg.org/allauth/django-allauth/issues
-
-Documentation
-  https://docs.allauth.org/en/latest/
-
-Stack Overflow
-  https://stackoverflow.com/questions/tagged/django-allauth
-
-Demo
-  https://django.demo.allauth.org and https://react.demo.allauth.org
-
-Translations
-  https://hosted.weblate.org/projects/allauth/django-allauth/
+**Django AllAuth** (Original Project)
+  Home page: https://allauth.org/
+  Source code: https://codeberg.org/allauth/django-allauth
+  Documentation: https://docs.allauth.org/en/latest/
 
 .. end-welcome
 
-Rationale
-=========
+Why Zango AllAuth?
+===================
 
 .. begin-rationale
 
-Most existing Django apps that address the problem of social
-authentication unfortunately focus only on one dimension - the social.
-Most developers end up integrating another app in order to support authentication
-flows that are locally generated.
+**Zango AllAuth** is a specialized fork of django-allauth created to seamlessly
+integrate with Zango's multi-tenant architecture and enterprise features.
 
-This approach creates a development gap between local and social
-authentication flows. It has remained an issue in spite of numerous common
-scenarios that both require. For example, an email address passed along by an
-OpenID provider may not be verified. Therefore, prior to hooking up
-an OpenID account to a local account the email address must be
-verified. This essentially is one of many use cases that mandate email
-verification to be present in both worlds.
+Key motivations:
 
-Integrating both is a humongous and tedious process. It is not as
-simple as adding one social authentication app, and one
-local account registration app to your ``INSTALLED_APPS`` list.
+- **Multi-Tenant Support**: Zango runs multiple independent applications on a single
+  server. Authentication must be tenant-aware, isolating user data and permissions
+  by application instance.
 
-This inadequacy is the reason for this project's existence  -- to offer a fully
-integrated authentication app that allows for both local and social
-authentication, with flows that just work, beautifully!
+- **Role-Based Access Control**: Zango provides built-in role and permission management.
+  AllAuth needed adaptation to work within this system while maintaining per-user,
+  per-role authentication contexts.
+
+- **Enterprise Features**: Modern applications often require multiple authentication
+  methods (local accounts, social login, enterprise SSO). Zango AllAuth provides
+  a unified authentication layer supporting all scenarios out of the box.
+
+- **Simplified Integration**: Rather than cobbling together separate authentication
+  packages, Zango AllAuth integrates seamlessly with Zango's configuration,
+  deployment, and permission systems.
+
+By combining django-allauth's battle-tested authentication logic with Zango's
+multi-tenant and role-based architecture, Zango AllAuth provides enterprise-ready
+authentication for rapidly developed business applications.
 
 .. end-rationale
 
@@ -103,63 +78,42 @@ Features
 
 .. begin-features
 
-**🔑 Comprehensive account functionality**
-    Supports multiple authentication
-    schemes (e.g. login by user name, or by email), as well as multiple
-    strategies for account verification (ranging from none to mandatory email
-    verification).
+**🏢 Multi-Tenant Authentication**
+    Authentication contexts are isolated per tenant. Each Zango application
+    maintains its own user database, roles, and permissions with complete data
+    isolation.
 
-**👥 Social Login**
-    Login using external identity providers, supporting any *Open ID Connect
-    compatible* provider, many *OAuth 1.0/2.0* providers, as well as
-    custom protocols such as, for example, *Telegram* authentication.
+**👥 Multiple Authentication Methods**
+    Supports local authentication (username/email), social login via OAuth 2.0
+    and OpenID Connect, SAML 2.0 for enterprise SSO, and custom authentication
+    protocols.
 
-**💼 Enterprise ready**
-    Supports SAML 2.0, which is often used in a B2B context.
+**🔐 Role-Based Access Control**
+    Seamless integration with Zango's role and permission system. Define fine-grained
+    permissions at the application level with easy-to-use policy definitions.
 
-**🕵️ Battle-tested**
-    The package has been out in the open since 2010. It is in use by many
-    commercial companies whose business depends on it and has hence been
-    subjected to various penetration testing attempts.
+**💼 Enterprise Ready**
+    Built from the ground up for enterprise applications. Includes SAML 2.0 support,
+    account enumeration prevention, rate limiting, and comprehensive security features.
 
-**⏳Rate limiting**
-    When you expose an authentication-enabled web service to
-    the internet, it is important to be prepared for potential brute force
-    attempts. Therefore, rate limiting is enabled out of the box.
+**⚙️ Smart Configuration**
+    Provider credentials can be managed via Django settings or the Zango App Panel
+    admin interface. Configuration per-tenant allows different authentication providers
+    for different applications on the same deployment.
 
-**🔒 Private**
-    Many sites leak information. For example, on many sites you can
-    check whether someone you know has an account by input their email address
-    into the password forgotten form, or trying to signup with it. We offer
-    account enumeration prevention, making it impossible to tell whether or not
-    somebody already has an account.
+**🔒 Security First**
+    Built-in rate limiting, account enumeration prevention, email verification,
+    and secure password management. Battle-tested since 2010 with contributions
+    from commercial organizations.
 
-**🧩 Customizable**
-    As a developer, you have the flexibility to customize the core functionality
-    according to your specific requirements. By employing the adapter pattern, you
-    can effortlessly introduce interventions at the desired points to deviate from
-    the standard behavior. This level of customization empowers you to tailor the
-    software to meet your unique needs and preferences.
+**🧩 Extensible Architecture**
+    The adapter pattern allows customization of authentication flows. Override
+    adapters to inject custom logic at key points in the authentication process.
 
-**⚙️ Configuration**
-    The required consumer keys and secrets for interacting with Facebook,
-    X (Twitter) and the likes can be configured using regular settings, or, can be
-    configured in the database via the Django admin. Here, optional support for
-    the Django sites framework is available, which is helpful for larger
-    multi-domain projects, but also allows for easy switching between a
-    development (localhost) and production setup without messing with your
-    settings and database.
+**📱 Progressive Enhancement**
+    Support for modern authentication features including multi-factor authentication,
+    social account linking, and email address verification across all authentication
+    methods.
 
 
 .. end-features
-
-
-Commercial Support
-==================
-
-.. begin-support
-
-Commercial support is available. If you find certain functionality missing, or
-require assistance on your project(s), please contact us: info@intenct.nl.
-
-.. end-support

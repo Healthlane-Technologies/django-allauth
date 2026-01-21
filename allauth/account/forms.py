@@ -23,6 +23,7 @@ from allauth.core import context, ratelimit
 from allauth.core.internal.cryptokit import compare_user_code
 from allauth.core.internal.httpkit import headed_redirect_response
 from allauth.utils import get_username_max_length, set_form_field_order
+from allauth.account.internal.stagekit import unstash_login
 
 from . import app_settings
 from .adapter import get_adapter
@@ -36,6 +37,7 @@ from .utils import (
 )
 
 from zango.core.utils import get_auth_priority
+from zango.apps.appauth.models import AppUserModel
 
 
 class EmailAwarePasswordResetTokenGenerator(PasswordResetTokenGenerator):
@@ -44,6 +46,7 @@ class EmailAwarePasswordResetTokenGenerator(PasswordResetTokenGenerator):
         sync_user_email_address(user)
         email = user_email(user)
         emails = set([email] if email else [])
+        user = AppUserModel.objects.get(id=user.id)
         emails.update(
             EmailAddress.objects.filter(user=user).values_list("email", flat=True)
         )
@@ -642,7 +645,7 @@ class ResetPasswordForm(forms.Form):
             return self.cleaned_data["email"]
         except AppUserModel.DoesNotExist:
             raise get_adapter().validation_error("unknown_email")
-    
+
     def clean_phone(self):
         phone = self.cleaned_data["phone"]
         if not phone:
@@ -701,10 +704,11 @@ class UserTokenForm(forms.Form):
     token_generator = default_token_generator
 
     def _get_user(self, uidb36):
+        from zango.apps.appauth.models import AppUserModel
         User = get_user_model()
         try:
             pk = url_str_to_user_pk(uidb36)
-            return User.objects.get(pk=pk)
+            return AppUserModel.objects.get(pk=pk)
         except (ValueError, User.DoesNotExist):
             return None
 
@@ -741,7 +745,8 @@ class ReauthenticateForm(forms.Form):
 
 
 class RequestLoginCodeForm(forms.Form):
-    email = EmailField()
+    email = EmailField(required=False)
+    phone = forms.CharField(required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -816,6 +821,17 @@ class BaseConfirmCodeForm(forms.Form):
     def clean_code(self):
         code = self.cleaned_data.get("code")
         if not compare_user_code(actual=code, expected=self.code):
+            from zango.apps.accesslogs.utils import capture_failed_login_attempt
+            from zango.core.utils import get_current_request
+            creds = unstash_login(get_current_request(), peek=True)
+            if creds:
+                creds = creds.serialize()
+                if creds.get("email"):
+                    usename = creds.get("email")
+                else:
+                    usename = creds.get("phone")
+                capture_failed_login_attempt(get_current_request(), {
+                    "username": usename})
             raise get_adapter().validation_error("incorrect_code")
         return code
 
