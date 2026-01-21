@@ -82,7 +82,7 @@ class ConfirmLoginCodeView(APIView):
         auth_status = authkit.AuthenticationStatus(request)
         self.stage = auth_status.get_pending_stage()
         if not self.stage:
-            return ConflictResponse(request)
+            return ConflictResponse(request, errors=[{"message": "Maximum attempts exceeded or session expired. Please try again later."}])
         self.process = flows.login_by_code.LoginCodeVerificationProcess.resume(
             self.stage
         )
@@ -392,7 +392,7 @@ class ManageEmailView(APIView):
         if request.user.is_authenticated:
             self.user = request.user
         elif request.method != "POST":
-            return response.AuthenticationResponse(request)
+            return AuthenticationResponse(request)
         else:
             self.verification_stage_process = EmailVerificationProcess.resume(request)
             if (
@@ -468,7 +468,7 @@ class ManagePhoneView(APIView):
         if request.user.is_authenticated:
             self.user = request.user
         elif request.method == "GET":
-            return response.AuthenticationResponse(request)
+            return AuthenticationResponse(request)
         elif request.method == "POST":
             stage = LoginStageController.enter(request, PhoneVerificationStage.key)
             if stage:

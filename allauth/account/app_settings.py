@@ -38,7 +38,12 @@ class AppSettings:
 
     @property
     def DEFAULT_HTTP_PROTOCOL(self):
-        return self._setting("DEFAULT_HTTP_PROTOCOL", "http").lower()
+        from django.conf import settings
+        if settings.ENV == "dev":
+            return "http"
+        else:
+            return "https"
+        # return self._setting("DEFAULT_HTTP_PROTOCOL", "http").lower()
 
     @property
     def EMAIL_CONFIRMATION_EXPIRE_DAYS(self):

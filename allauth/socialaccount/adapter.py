@@ -8,10 +8,11 @@ from django.utils.crypto import get_random_string
 from django.utils.translation import gettext_lazy as _
 
 from allauth.account.adapter import get_adapter as get_account_adapter
+from allauth.account.internal.emailkit import valid_email_or_none
 from allauth.account.utils import user_email, user_field, user_username
 from allauth.core.internal.adapter import BaseAdapter
 from allauth.core.internal.modelkit import deserialize_instance, serialize_instance
-from allauth.utils import import_attribute, valid_email_or_none
+from allauth.utils import import_attribute
 
 from . import app_settings
 
@@ -128,8 +129,8 @@ class DefaultSocialAccountAdapter(BaseAdapter):
         user_username(user, username or "")
         user_email(user, valid_email_or_none(email) or "")
         name_parts = (name or "").partition(" ")
-        user_field(user, "first_name", first_name or name_parts[0])
-        user_field(user, "last_name", last_name or name_parts[2])
+        user_field(user, "name", f"{first_name} {last_name}"  or f"{name_parts[0]} {name_parts[2]}")
+        # user_field(user, "last_name", last_name or name_parts[2])
         return user
 
     def get_connect_redirect_url(self, request, socialaccount):

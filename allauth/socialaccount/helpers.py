@@ -1,4 +1,4 @@
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
 
@@ -44,19 +44,16 @@ def render_authentication_error(
         return e.response
     if error == AuthError.CANCELLED:
         return HttpResponseRedirect(reverse("socialaccount_login_cancelled"))
-    context = {
+    error_data = {
         "auth_error": {
             "provider": provider,
             "code": error,
-            "exception": exception,
+            "exception": str(exception) if exception else None,
         }
     }
-    context.update(extra_context)
-    return render(
-        request,
-        "socialaccount/authentication_error." + account_settings.TEMPLATE_EXTENSION,
-        context,
-    )
+    if extra_context:
+        error_data.update(extra_context)
+    return JsonResponse(error_data, status=400)
 
 
 def complete_social_login(request, sociallogin):

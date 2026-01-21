@@ -71,6 +71,13 @@ class SocialApp(models.Model):
         verbose_name=_("key"), max_length=191, blank=True, help_text=_("Key")
     )
     settings = models.JSONField(default=dict, blank=True)
+    enabled = models.BooleanField(default=False)
+    redirect_url = models.URLField(
+        verbose_name=_("redirect URL"),
+        max_length=200,
+        blank=True,
+        help_text=_("Redirect URL"),
+    )
 
     if allauth.app_settings.SITES_ENABLED:
         # Most apps can be used across multiple domains, therefore we use
@@ -396,10 +403,10 @@ class SocialLogin:
             wipe_password,
         )
 
-        if self._did_authenticate_by_email:
-            wipe_password(request, self.user, self._did_authenticate_by_email)
-            if app_settings.EMAIL_AUTHENTICATION_AUTO_CONNECT:
-                self.connect(context.request, self.user)
+        # if self._did_authenticate_by_email:
+        #     wipe_password(request, self.user, self._did_authenticate_by_email)
+        #     if app_settings.EMAIL_AUTHENTICATION_AUTO_CONNECT:
+        #         self.connect(context.request, self.user)
 
     def get_redirect_url(self, request) -> Optional[str]:
         url = self.state.get("next")

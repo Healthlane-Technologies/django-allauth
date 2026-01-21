@@ -246,7 +246,7 @@ class SetPasswordStage(LoginStage):
     urlname = "account_set_password"
 
     def handle(self):
-        if self.request.session.get("saml"):
+        if self.request.session.get("saml") or self.request.session.get("sociallogin"):
             return None, True
         auth_methods = self.request.session.get("account_authentication_methods", [])
         if len(auth_methods) > 0:

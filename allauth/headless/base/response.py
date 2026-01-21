@@ -74,7 +74,7 @@ class BaseAuthenticationResponse(APIResponse):
         if stage_key:
             pending_flow = {"id": stage_key, "is_pending": True}
             if stage and stage_key == "role_selection":
-                self._enrich_role_selection_flow(stage, pending_flow)
+                self._enrich_role_selection_flow(stage, pending_flow, request)
                 return pending_flow
             if stage and stage_key == "set_password":
                 self._enrich_set_password_flow(stage, pending_flow, request)
@@ -125,7 +125,7 @@ class BaseAuthenticationResponse(APIResponse):
             elif request.session.get("saml", False):
                 flow["metadata"]["type"] = "sms"
 
-    def _enrich_role_selection_flow(self, stage, flow: dict) -> None:
+    def _enrich_role_selection_flow(self, stage, flow: dict, request) -> None:
         flow["metadata"] = {}
         roles = {}
         for role in stage.login.user.roles.all():
@@ -172,8 +172,11 @@ class ForbiddenResponse(APIResponse):
 
 
 class ConflictResponse(APIResponse):
-    def __init__(self, request):
-        super().__init__(request, status=HTTPStatus.CONFLICT)
+    def __init__(self, request, errors=None):
+        if errors is None:
+            super().__init__(request, status=HTTPStatus.CONFLICT)
+        else:
+            super().__init__(request, status=HTTPStatus.CONFLICT, errors=errors)
 
 
 def get_config_data(request):
@@ -222,4 +225,4 @@ class ConfigResponse(APIResponse):
 
 class RateLimitResponse(APIResponse):
     def __init__(self, request):
-        super().__init__(request, status=HTTPStatus.TOO_MANY_REQUESTS)
+        super().__init__(request, status=HTTPStatus.TOO_MANY_REQUESTS, errors = [{"message": "Rate limit exceeded"}])
