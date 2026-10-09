@@ -246,7 +246,9 @@ class SetPasswordStage(LoginStage):
     urlname = "account_set_password"
 
     def handle(self):
-        if self.request.session.get("saml"):
+        from allauth.account.internal.flows.login import is_sso_login
+
+        if is_sso_login(self.request):
             return None, True
         auth_methods = self.request.session.get("account_authentication_methods", [])
         if len(auth_methods) > 0:

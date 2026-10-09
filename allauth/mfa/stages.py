@@ -1,6 +1,8 @@
+from allauth.account.internal.flows.login import is_sso_login
 from allauth.account.stages import LoginStage
 from allauth.core.internal.httpkit import headed_redirect_response, is_headless_request
 from allauth.mfa import app_settings
+from allauth.mfa.adapter import get_adapter
 from allauth.mfa.internal.flows import trust
 from allauth.mfa.models import Authenticator
 from allauth.mfa.utils import is_mfa_enabled
@@ -25,6 +27,10 @@ class AuthenticateStage(LoginStage):
         ):
             return False
         if did_use_passwordless_login(request):
+            return False
+        if is_sso_login(request) and get_adapter().skip_mfa_for_sso(
+            self.login.user, request
+        ):
             return False
         if trust.is_trusted_browser(request, self.login.user):
             return False
