@@ -141,6 +141,9 @@ class OAuth2CallbackView(OAuth2View):
                 request, app, client, pkce_code_verifier=state.get("pkce_code_verifier")
             )
             token = self.adapter.parse_token(access_token)
+            # Lets adapters check values stashed at redirect time (e.g. the
+            # OpenID Connect nonce).
+            self.adapter.state = state
             if app.pk:
                 token.app = app
             login = self.adapter.complete_login(

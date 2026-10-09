@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from django.conf import settings
-from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth import authenticate
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.db import models
@@ -278,7 +278,7 @@ class SocialLogin:
         deserialize_instance = get_adapter().deserialize_instance
         provider = Provider.deserialize(data["provider"])
         account = deserialize_instance(SocialAccount, data["account"])
-        user = deserialize_instance(get_user_model(), data["user"])
+        user = deserialize_instance(AppUserModel, data["user"])
         if "token" in data:
             token = deserialize_instance(SocialToken, data["token"])
         else:
@@ -327,7 +327,9 @@ class SocialLogin:
         """
         if self.user.pk is None:
             return False
-        return get_user_model().objects.filter(pk=self.user.pk).exists()
+        # AUTH_USER_MODEL is not the app user model in Zango; check against the
+        # user's own model (AppUserModel once looked up or connected).
+        return type(self.user).objects.filter(pk=self.user.pk).exists()
 
     def lookup(self) -> None:
         """Look up the existing local user account to which this social login

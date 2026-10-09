@@ -116,14 +116,17 @@ class BaseAuthenticationResponse(APIResponse):
         adapter = get_mfa_adapter()
         enabled, types = adapter.is_mfa_enabled(stage.login.user)
         if enabled:
-            if len(request.session.get("account_authentication_methods", [])) > 0:
+            from allauth.account.internal.flows.login import is_sso_login
+
+            if is_sso_login(request):
+                # SSO identities are email based, so the second factor goes by SMS.
+                flow["metadata"]["type"] = "sms"
+            elif len(request.session.get("account_authentication_methods", [])) > 0:
                 latest_auth_method = request.session["account_authentication_methods"][0]
                 if latest_auth_method.get("email"):
                     flow["metadata"]["type"] = "sms"
                 else:
                     flow["metadata"]["type"] = "email"
-            elif request.session.get("saml", False):
-                flow["metadata"]["type"] = "sms"
 
     def _enrich_role_selection_flow(self, stage, flow: dict) -> None:
         flow["metadata"] = {}

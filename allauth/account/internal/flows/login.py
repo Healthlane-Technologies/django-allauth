@@ -16,6 +16,26 @@ from allauth.core.exceptions import ImmediateHttpResponse
 AUTHENTICATION_METHODS_SESSION_KEY = "account_authentication_methods"
 
 
+def is_sso_login(request) -> bool:
+    """
+    True when the login in progress came from single sign-on: SAML (legacy
+    ``saml`` session flag) or a social/OpenID Connect provider. Only the most
+    recent primary authentication counts (``mfa`` records are skipped), so a
+    password login after an abandoned SSO attempt is not treated as SSO.
+    """
+    session = getattr(request, "session", None)
+    if session is None:
+        return False
+    if session.get("saml"):
+        return True
+    for record in reversed(session.get(AUTHENTICATION_METHODS_SESSION_KEY, [])):
+        method = record.get("method")
+        if method == "mfa":
+            continue
+        return method == "socialaccount"
+    return False
+
+
 def record_authentication(request, user, method, **extra_data):
     """Here we keep a log of all authentication methods used within the current
     session.  Important to note is that having entries here does not imply that

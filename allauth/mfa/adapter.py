@@ -125,6 +125,12 @@ class DefaultMFAAdapter(BaseAdapter):
         policy = get_auth_priority(policy="two_factor_auth", request=request, user=user)
         return policy.get("required"), policy.get("allowed_methods")
 
+    def skip_mfa_for_sso(self, user=None, request=None) -> bool:
+        """``two_factor_auth.skip_for_sso`` from the Zango auth config."""
+        from zango.core.utils import get_auth_priority
+        policy = get_auth_priority(policy="two_factor_auth", request=request, user=user)
+        return bool(policy.get("skip_for_sso", False))
+
     def generate_authenticator_name(self, user, type: Authenticator.Type) -> str:
         """
         Generate a human friendly name for the key. Used to prefill the "Add
